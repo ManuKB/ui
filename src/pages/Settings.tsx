@@ -59,8 +59,8 @@ export function SettingsPage() {
               qc.invalidateQueries();
             }}
             options={[
+               { value: 'live', label: <><Radio size={14} /> Live device</> },
               { value: 'demo', label: <><FlaskConical size={14} /> Demo data</> },
-              { value: 'live', label: <><Radio size={14} /> Live device</> },
             ]}
           />
           <p className="settings__note">
@@ -93,7 +93,7 @@ export function SettingsPage() {
             </Badge>
           </header>
           <Field label="Device base URL" hint="mDNS hostname or direct IP — no trailing path">
-            <Input value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} placeholder="http://savings-esp32.local" spellCheck={false} />
+            <Input value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} placeholder="http://192.168.31.135" spellCheck={false} />
           </Field>
 
           <div className="settings__row">
