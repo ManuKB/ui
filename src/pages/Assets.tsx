@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Pencil, Trash2, Wallet } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Wallet, X } from 'lucide-react';
 import { useAssets, useAssetMutations, useRecurring } from '@/api/hooks';
 import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton } from '@/components/ui/primitives';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -22,6 +22,7 @@ export function AssetsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
   const [toDelete, setToDelete] = useState<Asset | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const usedIds = useMemo(() => {
     const s = new Set<string>();
@@ -45,6 +46,17 @@ export function AssetsPage() {
   }, [assets.data, filter, q]);
 
   const total = rows.filter((a) => a.active).reduce((s, a) => s + a.amount, 0);
+  const selectedAssets = (assets.data ?? []).filter((a) => selectedIds.has(a.id));
+  const selectedTotal = selectedAssets.reduce((s, a) => s + a.amount, 0);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const openNew = () => {
     setEditing(null);
@@ -66,13 +78,27 @@ export function AssetsPage() {
           <p className="page-head__crumb">Portfolio</p>
           <h2 className="page-head__title">Assets</h2>
           <p className="page-head__sub">
-            {assets.data?.length ?? 0} of {MAX_ASSETS} · {fmtMoney(total)} shown
+            {rows.length} of {assets.data?.length ?? 0 } · {fmtMoney(total)} shown
           </p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={openNew} disabled={(assets.data?.length ?? 0) >= MAX_ASSETS}>
-          New asset
-        </Button>
+        <div className="page-head__actions">
+          {selectedIds.size > 0 && (
+            <Button variant="subtle" size="sm" icon={<X size={15} />} onClick={() => setSelectedIds(new Set())}>
+              Clear selection
+            </Button>
+          )}
+          <Button icon={<Plus size={16} />} onClick={openNew} disabled={(assets.data?.length ?? 0) >= MAX_ASSETS}>
+            New asset
+          </Button>
+        </div>
       </div>
+
+      {selectedAssets.length > 0 && (
+        <Card className="selection-summary">
+          <span><b>{selectedAssets.length}</b> selected</span>
+          <strong className="mono">{fmtMoney(selectedTotal)}</strong>
+        </Card>
+      )}
 
       <Card className="toolbar">
         <div className="toolbar__search">
@@ -100,6 +126,7 @@ export function AssetsPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th className="selection-col"><span className="visually-hidden">Select</span></th>
                   <th>Asset</th>
                   <th>Type</th>
                   <th className="ta-r">Amount</th>
@@ -113,6 +140,14 @@ export function AssetsPage() {
               <motion.tbody variants={stagger} initial="hidden" animate="show">
                 {rows.map((a) => (
                   <motion.tr key={a.id} variants={riseItem} className={!a.active ? 'is-inactive' : ''}>
+                    <td className="selection-col">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${a.name}`}
+                        checked={selectedIds.has(a.id)}
+                        onChange={() => toggleSelected(a.id)}
+                      />
+                    </td>
                     <td>
                       <div className="cell-asset">
                         <AssetAvatar type={a.type} size={34} />
@@ -160,8 +195,14 @@ export function AssetsPage() {
           <motion.div variants={stagger} initial="hidden" animate="show" className="asset-cards">
             {rows.map((a) => (
               <motion.div key={a.id} variants={riseItem}>
-                <Card className={`asset-card ${!a.active ? 'is-inactive' : ''}`}>
-                  <div className="asset-card__head">
+                    <Card className={`asset-card ${!a.active ? 'is-inactive' : ''}`}>
+                      <div className="asset-card__head">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${a.name}`}
+                          checked={selectedIds.has(a.id)}
+                          onChange={() => toggleSelected(a.id)}
+                        />
                     <AssetAvatar type={a.type} size={40} />
                     <div className="asset-card__id">
                       <b>{a.name}</b>
@@ -212,6 +253,11 @@ export function AssetsPage() {
           if (!toDelete) return;
           try {
             await remove.mutateAsync(toDelete.id);
+            setSelectedIds((current) => {
+              const next = new Set(current);
+              next.delete(toDelete.id);
+              return next;
+            });
             setToDelete(null);
           } catch {
             /* toast */
