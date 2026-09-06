@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FlaskConical, Radio, Plug, RotateCcw, CheckCircle2, XCircle, Loader2, Sun, Moon } from 'lucide-react';
+import { FlaskConical, Radio, Plug, RotateCcw, CheckCircle2, XCircle, Loader2, Sun, Moon, Monitor } from 'lucide-react';
 import { useSettings } from '@/context/SettingsContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Button, Field, Input, Segmented, Badge } from '@/components/ui/primitives';
@@ -10,7 +10,7 @@ import { stagger, riseItem } from '@/components/layout/Layout';
 import { ApiError } from '@/types/api';
 
 export function SettingsPage() {
-  const { mode, setMode, deviceUrl, setDeviceUrl, theme, setTheme, resetDemoData } = useSettings();
+  const { mode, setMode, deviceUrl, setDeviceUrl, theme, resolvedTheme, setTheme, resetDemoData } = useSettings();
   const qc = useQueryClient();
   const [urlDraft, setUrlDraft] = useState(deviceUrl);
   const [probe, setProbe] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
@@ -129,15 +129,23 @@ export function SettingsPage() {
         <Card className="panel">
           <header className="panel__head">
             <h2>Appearance</h2>
+            <Badge tone="muted" dot>
+              {theme === 'system' ? `following browser · ${resolvedTheme}` : `${resolvedTheme} (manual)`}
+            </Badge>
           </header>
           <Segmented
             value={theme}
             onChange={setTheme}
             options={[
-              { value: 'dark', label: <><Moon size={14} /> Dark</> },
+              { value: 'system', label: <><Monitor size={14} /> System</> },
               { value: 'light', label: <><Sun size={14} /> Light</> },
+              { value: 'dark', label: <><Moon size={14} /> Dark</> },
             ]}
           />
+          <p className="settings__note">
+            <b>System</b> matches your browser / OS colour scheme and updates live when it changes. Pick Light or Dark to
+            override.
+          </p>
         </Card>
       </motion.div>
 

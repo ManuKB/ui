@@ -15,7 +15,7 @@ const TITLES: Record<string, string> = {
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const { pathname } = useLocation();
-  const { theme, toggleTheme, mode } = useSettings();
+  const { resolvedTheme, toggleTheme, mode } = useSettings();
   const status = useSystemStatus({ poll: true });
 
   const title =
@@ -44,7 +44,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         </span>
 
         <IconButton label="Toggle theme" onClick={toggleTheme}>
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </IconButton>
       </div>
     </header>

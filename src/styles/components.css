@@ -467,6 +467,8 @@
 .device-list li, .kv li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.83rem; }
 .device-list li:last-child, .kv li:last-child { border-bottom: 0; }
 .device-list span, .kv span { color: var(--text-muted); }
+.kv--tight li { padding: 6px 0; font-size: 0.78rem; }
+.kv--tight { margin-top: 2px; }
 .device-list b.ok { color: var(--accent-emerald); }
 .device-list b.bad { color: var(--accent-rose); }
 .device-off { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }

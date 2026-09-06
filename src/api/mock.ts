@@ -144,17 +144,29 @@ function occurrenceInterest(principal: number, annualRate: number, repeat: Recur
 export const mockApi = {
   async getSystemStatus(): Promise<SystemStatus> {
     await delay(180);
+    const heapFree = 176_000 + Math.round(Math.random() * 6000);
     return {
       device: 'ESP32 Savings Tracker',
       wifi_connected: true,
-      ip: '192.168.1.100',
+      ip: '192.168.31.135',
       rssi: -52 - Math.round(Math.random() * 8),
       hostname: 'savings-esp32.local',
       time_synced: true,
       date: todayISO(),
       datetime: new Date().toISOString().slice(0, 19).replace('T', ' '),
       database: 'ok',
-      free_heap: 188_000 + Math.round(Math.random() * 6000),
+      free_heap: heapFree,
+      memory: {
+        heap_total: 310_356,
+        heap_free: heapFree,
+        heap_min_free: 170_472,
+        heap_max_alloc: 110_580,
+        psram_total: 0,
+        psram_free: 0,
+        flash_size: 4_194_304,
+        sketch_size: 1_363_888,
+        sketch_free: 2_949_120,
+      },
     };
   },
 

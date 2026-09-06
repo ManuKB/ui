@@ -58,6 +58,18 @@ export interface RecurringInput {
   comment: string | null;
 }
 
+export interface SystemMemory {
+  heap_total: number;
+  heap_free: number;
+  heap_min_free: number;
+  heap_max_alloc: number;
+  psram_total: number;
+  psram_free: number;
+  flash_size: number;
+  sketch_size: number;
+  sketch_free: number;
+}
+
 export interface SystemStatus {
   device: string;
   wifi_connected: boolean;
@@ -69,6 +81,7 @@ export interface SystemStatus {
   datetime: string;
   database: 'ok' | 'error';
   free_heap: number;
+  memory?: SystemMemory;
 }
 
 export interface ProcessResult {
