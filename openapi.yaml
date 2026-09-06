@@ -1,0 +1,599 @@
+openapi: 3.0.3
+
+info:
+  title: ESP32 Personal Savings & Asset Tracker API
+  version: 1.0.0
+  description: >
+    REST/JSON API exposed by the ESP32 firmware. The UI communicates with the
+    device exclusively through these endpoints - it never accesses SQLite
+    directly and there is no arbitrary-SQL endpoint.
+
+
+    All responses are `application/json`. Errors use a uniform envelope:
+    `{ "error": "<CODE>", "message": "<human readable>" }`.
+
+
+    Domain limits: maximum 100 assets and 100 recurring rules.
+  contact:
+    name: Savings Tracker firmware
+  license:
+    name: Local / private use
+
+servers:
+  - url: http://savings-esp32.local
+    description: mDNS hostname on the local network
+  - url: http://{deviceIp}
+    description: Direct device IP
+    variables:
+      deviceIp:
+        default: 192.168.1.100
+
+tags:
+  - name: System
+    description: Device health and status
+  - name: Assets
+    description: CRUD for the `assets` table
+  - name: Recurring
+    description: CRUD + processing for the `recurring` table
+
+paths:
+
+  /api/system/status:
+    get:
+      tags: [System]
+      summary: Device status
+      description: Wi-Fi, time-sync, and database health of the device.
+      operationId: getSystemStatus
+      responses:
+        '200':
+          description: Current device status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemStatus' }
+              example:
+                device: ESP32 Savings Tracker
+                wifi_connected: true
+                ip: 192.168.1.100
+                rssi: -55
+                hostname: savings-esp32.local
+                time_synced: true
+                date: '2026-09-06'
+                datetime: '2026-09-06 21:14:03'
+                database: ok
+                free_heap: 190112
+
+  /api/assets:
+    get:
+      tags: [Assets]
+      summary: List assets
+      operationId: listAssets
+      responses:
+        '200':
+          description: Array of assets (ordered by id)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Asset' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Assets]
+      summary: Create an asset
+      operationId: createAsset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetInput' }
+            example:
+              id: A009
+              name: SBI Savings
+              type: BANK
+              amount: 250000
+              interest_rate: 0
+              interest_type: NONE
+              update_type: MANUAL
+              active: true
+              comment: Emergency savings
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: VALIDATION_ERROR, message: 'amount must be >= 0' }
+        '409':
+          description: Duplicate id or record limit reached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                duplicate:
+                  value: { error: DUPLICATE_ID, message: 'Asset A009 already exists' }
+                limit:
+                  value: { error: LIMIT_REACHED, message: 'Maximum of 100 assets reached' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/assets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AssetId'
+    get:
+      tags: [Assets]
+      summary: Get an asset
+      operationId: getAsset
+      responses:
+        '200':
+          description: The asset
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        '404':
+          $ref: '#/components/responses/AssetNotFound'
+    put:
+      tags: [Assets]
+      summary: Update an asset
+      description: Full replace. The path `id` always wins over any `id` in the body.
+      operationId: updateAsset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssetInput' }
+            example:
+              id: A001
+              name: HDFC Savings
+              type: BANK
+              amount: 512500.75
+              interest_rate: 0
+              interest_type: NONE
+              update_type: MANUAL
+              active: true
+      responses:
+        '200':
+          description: Updated asset
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Asset' }
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          $ref: '#/components/responses/AssetNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Assets]
+      summary: Delete an asset
+      description: >
+        Rejected with 409 if any active recurring rule references the asset as
+        its source (`asset_id`) or as its `target_bank_id`.
+      operationId: deleteAsset
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: string, example: A009 }
+        '404':
+          $ref: '#/components/responses/AssetNotFound'
+        '409':
+          description: Asset is in use
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                error: ASSET_IN_USE
+                message: 'Asset A003 is referenced by an active recurring rule'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/recurring:
+    get:
+      tags: [Recurring]
+      summary: List recurring rules
+      description: Each rule includes a dynamically derived `status` field.
+      operationId: listRecurring
+      responses:
+        '200':
+          description: Array of recurring rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RecurringRule' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Recurring]
+      summary: Create a recurring rule
+      operationId: createRecurring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecurringInput' }
+            example:
+              id: R001
+              asset_id: A003
+              repeat_type: MONTHLY
+              next_run: '2026-10-01'
+              interest_mode: SIMPLE
+              target_bank_id: A001
+              auto_enabled: true
+              comment: HDFC FD monthly interest
+      responses:
+        '201':
+          description: Created rule (with derived status)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringRule' }
+        '400':
+          description: Validation / foreign-key / target-bank error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                assetMissing:
+                  value: { error: ASSET_NOT_FOUND, message: 'asset_id A999 does not exist' }
+                bankRequired:
+                  value: { error: TARGET_BANK_REQUIRED, message: 'target_bank_id is required for a MONTHLY-interest source asset' }
+                bankType:
+                  value: { error: TARGET_BANK_INVALID_TYPE, message: 'target_bank_id A005 is not a BANK asset' }
+                cumulativeBank:
+                  value: { error: TARGET_BANK_NOT_ALLOWED, message: 'a CUMULATIVE asset keeps its interest - target_bank_id must be empty' }
+        '409':
+          description: Duplicate id or record limit reached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/recurring/pending:
+    get:
+      tags: [Recurring]
+      summary: List pending rules
+      description: >
+        Rules that need a UI decision: `active = true` AND `auto_enabled = false`
+        AND `next_run <= today`. Returns 409 before NTP time is synchronised.
+      operationId: listPendingRecurring
+      responses:
+        '200':
+          description: Pending rules (each with `asset_name` and derived `status`)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/RecurringRule' }
+              example:
+                - id: R004
+                  asset_id: A008
+                  asset_name: Cash
+                  repeat_type: MONTHLY
+                  next_run: '2026-09-01'
+                  interest_mode: SIMPLE
+                  target_bank_id: A001
+                  auto_enabled: false
+                  last_run: null
+                  active: true
+                  comment: null
+                  status: OVERDUE
+        '409':
+          description: Time not synchronised yet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: TIME_NOT_SYNCED, message: 'time is not synchronised yet' }
+
+  /api/recurring/{id}:
+    parameters:
+      - $ref: '#/components/parameters/RecurringId'
+    get:
+      tags: [Recurring]
+      summary: Get a recurring rule
+      operationId: getRecurring
+      responses:
+        '200':
+          description: The rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringRule' }
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+    put:
+      tags: [Recurring]
+      summary: Update a recurring rule
+      description: Full replace. `last_run` is server-managed and ignored on input.
+      operationId: updateRecurring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecurringInput' }
+      responses:
+        '200':
+          description: Updated rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringRule' }
+        '400':
+          description: Validation / foreign-key / target-bank error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Recurring]
+      summary: Delete a recurring rule
+      operationId: deleteRecurring
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: string, example: R001 }
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/recurring/{id}/process:
+    parameters:
+      - $ref: '#/components/parameters/RecurringId'
+    post:
+      tags: [Recurring]
+      summary: Process the current occurrence
+      description: >
+        Executes one occurrence inside a single SQLite transaction:
+        credits `target_bank_id` (MONTHLY interest / bond return) or grows the
+        source asset (CUMULATIVE FD), then advances `last_run` and `next_run`.
+        Any failure rolls the whole transaction back.
+      operationId: processRecurring
+      responses:
+        '200':
+          description: Processed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProcessResult' }
+              example:
+                id: R001
+                processed_occurrences: 1
+                bank_credited: 5833.33
+                source_delta: 0
+                target_bank_id: A001
+                last_run: '2026-10-01'
+                next_run: '2026-11-01'
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+        '409':
+          description: Not processable in the current state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                notDue:
+                  value: { error: NOT_DUE, message: 'Recurring rule R001 is not due until 2026-10-01' }
+                already:
+                  value: { error: ALREADY_PROCESSED, message: 'Occurrence 2026-10-01 of rule R001 was already processed' }
+                inactive:
+                  value: { error: RECURRING_INACTIVE, message: 'Recurring rule R001 is not active' }
+                sourceInactive:
+                  value: { error: SOURCE_INACTIVE, message: 'Source asset A003 is not active' }
+                noTime:
+                  value: { error: TIME_NOT_SYNCED, message: 'time is not synchronised yet - refusing to process date-sensitive rule' }
+        '500':
+          description: Database error (transaction rolled back)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/recurring/{id}/skip:
+    parameters:
+      - $ref: '#/components/parameters/RecurringId'
+    post:
+      tags: [Recurring]
+      summary: Skip the current occurrence
+      description: Advances `next_run` to the next occurrence. Balances are not touched.
+      operationId: skipRecurring
+      responses:
+        '200':
+          description: Skipped
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkipResult' }
+              example: { id: R004, skipped: true, next_run: '2026-10-01' }
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/recurring/{id}/auto:
+    parameters:
+      - $ref: '#/components/parameters/RecurringId'
+    put:
+      tags: [Recurring]
+      summary: Enable / disable automatic processing
+      operationId: setRecurringAuto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [auto_enabled]
+              properties:
+                auto_enabled: { type: boolean }
+            example: { auto_enabled: true }
+      responses:
+        '200':
+          description: Updated rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringRule' }
+        '400':
+          description: '`auto_enabled` missing or not a boolean'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          $ref: '#/components/responses/RecurringNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+
+  parameters:
+    AssetId:
+      name: id
+      in: path
+      required: true
+      description: Asset primary key (e.g. A001)
+      schema: { type: string, maxLength: 32 }
+    RecurringId:
+      name: id
+      in: path
+      required: true
+      description: Recurring rule primary key (e.g. R001)
+      schema: { type: string, maxLength: 32 }
+
+  responses:
+    InternalError:
+      description: Internal / database error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: DB_ERROR, message: 'insert failed' }
+    AssetNotFound:
+      description: Asset does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: ASSET_NOT_FOUND, message: 'Asset A999 does not exist' }
+    RecurringNotFound:
+      description: Recurring rule does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: RECURRING_NOT_FOUND, message: 'Recurring rule R999 does not exist' }
+
+  schemas:
+
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:   { type: string, description: Machine-readable code }
+        message: { type: string, description: Human-readable detail }
+
+    SystemStatus:
+      type: object
+      properties:
+        device:         { type: string, example: ESP32 Savings Tracker }
+        wifi_connected: { type: boolean }
+        ip:             { type: string, example: 192.168.1.100 }
+        rssi:           { type: integer, description: dBm, example: -55 }
+        hostname:       { type: string, example: savings-esp32.local }
+        time_synced:    { type: boolean }
+        date:           { type: string, format: date, example: '2026-09-06' }
+        datetime:       { type: string, example: '2026-09-06 21:14:03' }
+        database:       { type: string, enum: [ok, error] }
+        free_heap:      { type: integer, description: bytes }
+
+    Asset:
+      type: object
+      required: [id, name, type, amount, interest_rate, interest_type, update_type, active]
+      properties:
+        id:            { type: string, maxLength: 32, example: A003 }
+        name:          { type: string, example: HDFC FD }
+        type:          { type: string, enum: [BANK, FD, STOCK, BOND, LENDING, CASH] }
+        amount:        { type: number, format: double, minimum: 0, example: 1000000 }
+        interest_rate: { type: number, format: double, minimum: 0, description: Annual %, example: 7.0 }
+        interest_type: { type: string, enum: [NONE, MONTHLY, CUMULATIVE] }
+        update_type:   { type: string, enum: [MANUAL, RECURRING] }
+        active:        { type: boolean }
+        comment:       { type: string, nullable: true }
+
+    AssetInput:
+      allOf:
+        - $ref: '#/components/schemas/Asset'
+      description: >
+        Same shape as Asset. `id` is required on POST; on PUT the path parameter
+        overrides it. `amount`/`interest_rate` default to 0, `interest_type`
+        to NONE, `update_type` to MANUAL, `active` to true.
+
+    RecurringRule:
+      type: object
+      required: [id, asset_id, repeat_type, next_run, interest_mode, auto_enabled, active, status]
+      properties:
+        id:             { type: string, maxLength: 32, example: R001 }
+        asset_id:       { type: string, description: FK -> assets.id, example: A003 }
+        asset_name:     { type: string, description: Only present in /pending responses }
+        repeat_type:    { type: string, enum: [DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY] }
+        next_run:       { type: string, format: date, example: '2026-10-01' }
+        interest_mode:  { type: string, enum: [SIMPLE, COMPOUND, NONE] }
+        target_bank_id:
+          type: string
+          nullable: true
+          description: FK -> assets.id; the referenced asset MUST be type BANK. Empty for CUMULATIVE sources.
+          example: A001
+        auto_enabled:   { type: boolean }
+        last_run:       { type: string, format: date, nullable: true, description: Server-managed }
+        active:         { type: boolean }
+        comment:        { type: string, nullable: true }
+        status:
+          type: string
+          readOnly: true
+          enum: [SCHEDULED, DUE, OVERDUE, AUTO, INACTIVE]
+          description: >
+            Derived, never stored. SCHEDULED next_run>today; DUE next_run==today && !auto;
+            OVERDUE next_run<today && !auto; AUTO next_run<=today && auto; INACTIVE active=0.
+
+    RecurringInput:
+      type: object
+      required: [id, asset_id, repeat_type, next_run, interest_mode]
+      properties:
+        id:             { type: string, maxLength: 32 }
+        asset_id:       { type: string }
+        repeat_type:    { type: string, enum: [DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY] }
+        next_run:       { type: string, format: date }
+        interest_mode:  { type: string, enum: [SIMPLE, COMPOUND, NONE] }
+        target_bank_id: { type: string, nullable: true }
+        auto_enabled:   { type: boolean, default: false }
+        active:         { type: boolean, default: true }
+        comment:        { type: string, nullable: true }
+
+    ProcessResult:
+      type: object
+      properties:
+        id:                    { type: string }
+        processed_occurrences: { type: integer, description: '>1 only for scheduler catch-up' }
+        bank_credited:         { type: number, format: double }
+        source_delta:          { type: number, format: double, description: Added to a CUMULATIVE FD }
+        target_bank_id:        { type: string, nullable: true }
+        last_run:              { type: string, format: date }
+        next_run:              { type: string, format: date }
+
+    SkipResult:
+      type: object
+      properties:
+        id:       { type: string }
+        skipped:  { type: boolean }
+        next_run: { type: string, format: date }
