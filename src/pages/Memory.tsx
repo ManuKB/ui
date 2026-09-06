@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Search, Pencil, Trash2, KeyRound, Lock } from 'lucide-react';
 import { useMemory, useMemoryMutations } from '@/api/hooks';
-import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton } from '@/components/ui/primitives';
+import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton, Fab } from '@/components/ui/primitives';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SecretText } from '@/components/ui/secret';
 import { MemoryForm } from './forms/MemoryForm';
@@ -85,7 +85,12 @@ function MemoryList() {
           <Button variant="ghost" size="sm" icon={<Lock size={14} />} onClick={relock}>
             Lock
           </Button>
-          <Button icon={<Plus size={16} />} onClick={openNew} disabled={(memory.data?.length ?? 0) >= MAX_MEMORY}>
+          <Button
+            className="hide-on-mobile"
+            icon={<Plus size={16} />}
+            onClick={openNew}
+            disabled={(memory.data?.length ?? 0) >= MAX_MEMORY}
+          >
             New row
           </Button>
         </div>
@@ -180,6 +185,8 @@ function MemoryList() {
           </motion.div>
         </>
       )}
+
+      {(memory.data?.length ?? 0) < MAX_MEMORY && <Fab label="New row" icon={<Plus size={18} />} onClick={openNew} />}
 
       <MemoryForm open={formOpen} onClose={() => setFormOpen(false)} editing={editing} />
       <ConfirmDialog

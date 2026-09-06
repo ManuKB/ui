@@ -11,7 +11,7 @@ interface ModalProps {
   subtitle?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  variant?: 'drawer' | 'center';
+  variant?: 'drawer' | 'center' | 'sheet';
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -30,7 +30,9 @@ export function Modal({ open, onClose, title, subtitle, children, footer, varian
   const panelMotion =
     variant === 'drawer'
       ? { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' } }
-      : { initial: { y: 24, opacity: 0, scale: 0.97 }, animate: { y: 0, opacity: 1, scale: 1 }, exit: { y: 12, opacity: 0, scale: 0.98 } };
+      : variant === 'sheet'
+        ? { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } }
+        : { initial: { y: 24, opacity: 0, scale: 0.97 }, animate: { y: 0, opacity: 1, scale: 1 }, exit: { y: 12, opacity: 0, scale: 0.98 } };
 
   return createPortal(
     <AnimatePresence>
@@ -50,6 +52,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, varian
             role="dialog"
             aria-modal="true"
           >
+            {variant === 'sheet' && <div className="modal-panel__grip" />}
             <header className="modal-panel__head">
               <div>
                 <h2>{title}</h2>

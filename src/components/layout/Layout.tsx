@@ -1,22 +1,20 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { BottomNav } from './BottomNav';
+import { LiveFallback } from '@/components/LiveFallback';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
 
   return (
     <div className="shell">
-      <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <LiveFallback />
+      <Sidebar />
       <div className="shell__main">
-        <Topbar onMenu={() => setMenuOpen(true)} />
+        <Topbar />
         <main className="shell__content">
           <AnimatePresence mode="wait">
             <motion.div
@@ -32,6 +30,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Pencil, Trash2, Wallet, X } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Wallet, X, ChevronRight } from 'lucide-react';
 import { useAssets, useAssetMutations, useRecurring } from '@/api/hooks';
-import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton } from '@/components/ui/primitives';
+import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton, Fab } from '@/components/ui/primitives';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { AssetAvatar, AssetTypeIcon, ASSET_TYPE_META } from '@/components/domain';
 import { AssetForm } from './forms/AssetForm';
+import { AssetDetail } from './AssetDetail';
 import { stagger, riseItem } from '@/components/layout/Layout';
 import { fmtMoney, fmtPct } from '@/lib/format';
 import { ASSET_TYPES, MAX_ASSETS, type Asset, type AssetType } from '@/types/api';
@@ -22,6 +23,7 @@ export function AssetsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
   const [toDelete, setToDelete] = useState<Asset | null>(null);
+  const [detail, setDetail] = useState<Asset | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const usedIds = useMemo(() => {
@@ -87,7 +89,12 @@ export function AssetsPage() {
               Clear selection
             </Button>
           )}
-          <Button icon={<Plus size={16} />} onClick={openNew} disabled={(assets.data?.length ?? 0) >= MAX_ASSETS}>
+          <Button
+            className="hide-on-mobile"
+            icon={<Plus size={16} />}
+            onClick={openNew}
+            disabled={(assets.data?.length ?? 0) >= MAX_ASSETS}
+          >
             New asset
           </Button>
         </div>
@@ -191,51 +198,42 @@ export function AssetsPage() {
             </table>
           </Card>
 
-          {/* mobile cards */}
-          <motion.div variants={stagger} initial="hidden" animate="show" className="asset-cards">
+          {/* mobile — compact tiles, tap for detail */}
+          <motion.div variants={stagger} initial="hidden" animate="show" className="asset-tiles">
             {rows.map((a) => (
-              <motion.div key={a.id} variants={riseItem}>
-                    <Card className={`asset-card ${!a.active ? 'is-inactive' : ''}`}>
-                      <div className="asset-card__head">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${a.name}`}
-                          checked={selectedIds.has(a.id)}
-                          onChange={() => toggleSelected(a.id)}
-                        />
-                    <AssetAvatar type={a.type} size={40} />
-                    <div className="asset-card__id">
-                      <b>{a.name}</b>
-                      <span className="mono">{a.id} · {ASSET_TYPE_META[a.type].label}</span>
-                    </div>
-                    {a.active ? <Badge tone="success" dot>Active</Badge> : <Badge tone="muted" dot>Inactive</Badge>}
-                  </div>
-                  <div className="asset-card__amt mono">{fmtMoney(a.amount)}</div>
-                  <div className="asset-card__meta">
-                    <span>{a.interest_type === 'NONE' ? 'No interest' : `${a.interest_type} · ${fmtPct(a.interest_rate)}`}</span>
-                    <span className="dim">{a.update_type}</span>
-                  </div>
-                  {a.comment && <p className="asset-card__note">{a.comment}</p>}
-                  <div className="asset-card__actions">
-                    <Button variant="subtle" size="sm" icon={<Pencil size={14} />} onClick={() => openEdit(a)}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<Trash2 size={14} />}
-                      disabled={usedIds.has(a.id)}
-                      onClick={() => setToDelete(a)}
-                    >
-                      {usedIds.has(a.id) ? 'In use' : 'Delete'}
-                    </Button>
-                  </div>
-                </Card>
-              </motion.div>
+              <motion.button
+                key={a.id}
+                variants={riseItem}
+                type="button"
+                className={`asset-tile ${!a.active ? 'is-inactive' : ''}`}
+                onClick={() => setDetail(a)}
+              >
+                <AssetAvatar type={a.type} size={38} />
+                <span className="asset-tile__name">{a.name}</span>
+                <span className="asset-tile__amt mono">{fmtMoney(a.amount)}</span>
+                <ChevronRight size={16} className="asset-tile__go" />
+              </motion.button>
             ))}
           </motion.div>
         </>
       )}
+
+      {(assets.data?.length ?? 0) < MAX_ASSETS && <Fab label="New asset" icon={<Plus size={18} />} onClick={openNew} />}
+
+      <AssetDetail
+        asset={detail}
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        inUse={detail ? usedIds.has(detail.id) : false}
+        onEdit={(a) => {
+          setDetail(null);
+          openEdit(a);
+        }}
+        onDelete={(a) => {
+          setDetail(null);
+          setToDelete(a);
+        }}
+      />
 
       <AssetForm open={formOpen} onClose={() => setFormOpen(false)} editing={editing} />
       <ConfirmDialog

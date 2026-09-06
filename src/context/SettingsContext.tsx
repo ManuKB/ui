@@ -15,7 +15,9 @@ interface SettingsState {
 interface SettingsContextValue extends SettingsState {
   api: LiveApi;
   resolvedTheme: ResolvedTheme;
-  setMode: (m: DataMode) => void;
+  /** true once the user explicitly picked "Live" — suppresses auto-fallback to demo. */
+  liveIntent: boolean;
+  setMode: (m: DataMode, opts?: { intent?: boolean }) => void;
   setDeviceUrl: (u: string) => void;
   toggleTheme: () => void;
   setTheme: (t: ThemePref) => void;
@@ -23,6 +25,7 @@ interface SettingsContextValue extends SettingsState {
 }
 
 const LS_KEY = 'savings-tracker:settings:v1';
+const INTENT_KEY = 'savings-tracker:live-intent';
 const DEFAULT_URL = 'http://192.168.31.135';
 
 const systemTheme = (): ResolvedTheme =>
@@ -47,9 +50,18 @@ function load(): SettingsState {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
+const readIntent = () => {
+  try {
+    return sessionStorage.getItem(INTENT_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SettingsState>(load);
   const [osTheme, setOsTheme] = useState<ResolvedTheme>(systemTheme);
+  const [liveIntent, setLiveIntent] = useState<boolean>(readIntent);
 
   // Track OS theme changes so `system` stays live.
   useEffect(() => {
@@ -77,7 +89,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const liveApi = useMemo(() => createLiveApi(() => state.deviceUrl), [state.deviceUrl]);
   const api = state.mode === 'demo' ? (mockApi as unknown as LiveApi) : liveApi;
 
-  const setMode = useCallback((mode: DataMode) => setState((s) => ({ ...s, mode })), []);
+  const setMode = useCallback((mode: DataMode, opts?: { intent?: boolean }) => {
+    setState((s) => ({ ...s, mode }));
+    // An explicit switch to Live means "I know, let me try" — stop auto-falling back.
+    // Switching to Demo (manually or via fallback) clears that flag.
+    const intent = mode === 'live' ? opts?.intent ?? true : false;
+    setLiveIntent(intent);
+    try {
+      sessionStorage.setItem(INTENT_KEY, intent ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const setDeviceUrl = useCallback((deviceUrl: string) => setState((s) => ({ ...s, deviceUrl })), []);
   const setTheme = useCallback((theme: ThemePref) => setState((s) => ({ ...s, theme })), []);
   const toggleTheme = useCallback(
@@ -90,6 +113,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     ...state,
     api,
     resolvedTheme,
+    liveIntent,
     setMode,
     setDeviceUrl,
     toggleTheme,

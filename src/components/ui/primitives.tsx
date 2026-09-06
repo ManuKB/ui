@@ -6,6 +6,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Loader2 } from 'lucide-react';
 
 /* ---------------- Button ---------------- */
@@ -33,6 +34,29 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     </button>
   );
 });
+
+/** Android-style floating action button — visible only on mobile via CSS. */
+export function Fab({
+  label,
+  icon,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  // Portalled to <body> so an ancestor's transform/filter (page transition)
+  // can't turn position:fixed into position:absolute.
+  return createPortal(
+    <button type="button" className="fab" onClick={onClick} disabled={disabled} aria-label={label}>
+      {icon}
+      <span>{label}</span>
+    </button>,
+    document.body,
+  );
+}
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
