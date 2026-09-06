@@ -23,7 +23,7 @@ interface SettingsContextValue extends SettingsState {
 }
 
 const LS_KEY = 'savings-tracker:settings:v1';
-const DEFAULT_URL = 'http://savings-esp32.local';
+const DEFAULT_URL = 'http://192.168.31.135';
 
 const systemTheme = (): ResolvedTheme =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
