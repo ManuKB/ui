@@ -16,7 +16,6 @@ export function SettingsPage() {
   const [probe, setProbe] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
   const [probeMsg, setProbeMsg] = useState('');
 
-  const httpsToHttp = location.protocol === 'https:' && urlDraft.startsWith('http:');
 
   const save = () => {
     setDeviceUrl(urlDraft.trim());
@@ -111,17 +110,14 @@ export function SettingsPage() {
             <p className="probe probe--fail"><XCircle size={15} /> {probeMsg}</p>
           )}
 
-          {httpsToHttp && (
             <div className="callout callout--warn">
-              <strong>Mixed content will block this.</strong>
+              <strong>Isiri Rajini Mohan.</strong>
               <p>
-                This page is served over HTTPS (GitHub Pages), and browsers refuse HTTPS→HTTP requests to a
-                plain-HTTP device. To use Live mode, either run this UI locally over <span className="mono">http://</span>,
-                enable “Insecure content → Allow” for this site in your browser, or put a TLS reverse proxy in front of
-                the ESP32. Demo mode needs none of this.
+                  Mohan: 10.63.28.161
+                  Rajini: 10.50.162.161
               </p>
             </div>
-          )}
+          
         </Card>
       </motion.div>
 
