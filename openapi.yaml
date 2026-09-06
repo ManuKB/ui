@@ -35,6 +35,8 @@ tags:
     description: CRUD for the `assets` table
   - name: Recurring
     description: CRUD + processing for the `recurring` table
+  - name: Memory
+    description: CRUD for the generic `memory` key/label table (entity / owner / name / key)
 
 paths:
 
@@ -458,6 +460,140 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /api/memory:
+    get:
+      tags: [Memory]
+      summary: List memory rows
+      description: >
+        Optionally filtered by any combination of `entity`, `owner`, `name`,
+        `key` (exact match, all parameterised). No query parameters returns all rows.
+      operationId: listMemory
+      parameters:
+        - { name: entity, in: query, required: false, schema: { type: string } }
+        - { name: owner,  in: query, required: false, schema: { type: string } }
+        - { name: name,   in: query, required: false, schema: { type: string } }
+        - { name: key,    in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Array of memory rows (ordered by id)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MemoryEntry' }
+              example:
+                - id: mem_1a2b3c_1
+                  entity: asset
+                  owner: A003
+                  name: nickname
+                  key: "Rainy-day FD"
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Memory]
+      summary: Create a memory row
+      description: >
+        `id` is optional - if omitted the device generates one
+        (`mem_<millis>_<seq>`). `name` is required.
+      operationId: createMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemoryInput' }
+            example:
+              entity: asset
+              owner: A003
+              name: nickname
+              key: "Rainy-day FD"
+      responses:
+        '201':
+          description: Created row (with the stored / generated id)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryEntry' }
+        '400':
+          description: Validation failed (missing name / field too long)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: VALIDATION_ERROR, message: 'name is required' }
+        '409':
+          description: Duplicate id, or 200-row limit reached
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: LIMIT_REACHED, message: 'Maximum of 200 memory rows reached' }
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/memory/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Memory row id
+        schema: { type: string, maxLength: 64 }
+    get:
+      tags: [Memory]
+      summary: Get a memory row
+      operationId: getMemory
+      responses:
+        '200':
+          description: The row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryEntry' }
+        '404':
+          $ref: '#/components/responses/MemoryNotFound'
+    put:
+      tags: [Memory]
+      summary: Update a memory row
+      description: Full replace. The path `id` always wins.
+      operationId: updateMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MemoryInput' }
+            example:
+              entity: asset
+              owner: A003
+              name: nickname
+              key: "Emergency FD"
+      responses:
+        '200':
+          description: Updated row
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryEntry' }
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          $ref: '#/components/responses/MemoryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Memory]
+      summary: Delete a memory row
+      operationId: deleteMemory
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: string, example: mem_1a2b3c_1 }
+        '404':
+          $ref: '#/components/responses/MemoryNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
 
   parameters:
@@ -493,6 +629,12 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           example: { error: RECURRING_NOT_FOUND, message: 'Recurring rule R999 does not exist' }
+    MemoryNotFound:
+      description: Memory row does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: MEMORY_NOT_FOUND, message: 'Memory row mem_x does not exist' }
 
   schemas:
 
@@ -597,3 +739,23 @@ components:
         id:       { type: string }
         skipped:  { type: boolean }
         next_run: { type: string, format: date }
+
+    MemoryEntry:
+      type: object
+      required: [id, entity, owner, name, key]
+      properties:
+        id:     { type: string, maxLength: 64, description: PK; device-generated if not supplied }
+        entity: { type: string, maxLength: 128, description: "free-form category, e.g. asset / recurring / user" }
+        owner:  { type: string, maxLength: 128, description: "free-form owner reference, e.g. an asset id" }
+        name:   { type: string, maxLength: 128, description: label / attribute name (required) }
+        key:    { type: string, maxLength: 256, description: the stored value / token }
+
+    MemoryInput:
+      type: object
+      required: [name]
+      properties:
+        id:     { type: string, maxLength: 64, description: optional; generated when omitted }
+        entity: { type: string, maxLength: 128 }
+        owner:  { type: string, maxLength: 128 }
+        name:   { type: string, maxLength: 128 }
+        key:    { type: string, maxLength: 256 }

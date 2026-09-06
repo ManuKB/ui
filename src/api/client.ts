@@ -2,6 +2,9 @@ import {
   ApiError,
   type Asset,
   type AssetInput,
+  type MemoryEntry,
+  type MemoryFilters,
+  type MemoryInput,
   type ProcessResult,
   type RecurringInput,
   type RecurringRule,
@@ -25,6 +28,11 @@ export interface LiveApi {
   processRecurring(id: string): Promise<ProcessResult>;
   skipRecurring(id: string): Promise<SkipResult>;
   setRecurringAuto(id: string, auto_enabled: boolean): Promise<RecurringRule>;
+  listMemory(filters?: MemoryFilters): Promise<MemoryEntry[]>;
+  getMemory(id: string): Promise<MemoryEntry>;
+  createMemory(input: MemoryInput): Promise<MemoryEntry>;
+  updateMemory(id: string, input: MemoryInput): Promise<MemoryEntry>;
+  deleteMemory(id: string): Promise<{ deleted: string }>;
 }
 
 export function createLiveApi(getBaseUrl: () => string): LiveApi {
@@ -72,6 +80,16 @@ export function createLiveApi(getBaseUrl: () => string): LiveApi {
     skipRecurring: (id) => req(`/api/recurring/${encodeURIComponent(id)}/skip`, { method: 'POST' }),
     setRecurringAuto: (id, auto_enabled) =>
       req(`/api/recurring/${encodeURIComponent(id)}/auto`, { method: 'PUT', ...json({ auto_enabled }) }),
+    listMemory: (filters) => {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(filters ?? {})) if (v) qs.set(k, v);
+      const suffix = qs.toString() ? `?${qs}` : '';
+      return req(`/api/memory${suffix}`);
+    },
+    getMemory: (id) => req(`/api/memory/${encodeURIComponent(id)}`),
+    createMemory: (input) => req('/api/memory', { method: 'POST', ...json(input) }),
+    updateMemory: (id, input) => req(`/api/memory/${encodeURIComponent(id)}`, { method: 'PUT', ...json(input) }),
+    deleteMemory: (id) => req(`/api/memory/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   };
 }
 

@@ -5,6 +5,7 @@ import {
   Wallet,
   Repeat,
   BellRing,
+  KeyRound,
   Cpu,
   Settings,
   X,
@@ -16,6 +17,7 @@ const NAV = [
   { to: '/assets', label: 'Assets', icon: Wallet },
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/pending', label: 'Pending actions', icon: BellRing, badgeKey: 'pending' as const },
+  { to: '/memory', label: 'Memory', icon: KeyRound },
   { to: '/system', label: 'Device', icon: Cpu },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

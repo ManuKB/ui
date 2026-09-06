@@ -15,7 +15,8 @@ Hash-routed SPA, deployable to GitHub Pages with zero server.
 | **Assets** | Full CRUD. Table on desktop, cards on mobile. Search + type filter. Delete is blocked when an active recurring rule references the asset. |
 | **Recurring** | Full CRUD + `process` / `skip` / toggle `auto`. Status chips (SCHEDULED / DUE / OVERDUE / AUTO / INACTIVE) derived exactly per the spec. The form enforces the `target_bank_id` rules (required for MONTHLY-interest sources, forbidden for CUMULATIVE). |
 | **Pending actions** | The `/api/recurring/pending` inbox. Process / skip / make-automatic, with an animated result panel showing `bank_credited`, `source_delta` and the advanced dates. Handles `TIME_NOT_SYNCED` (409) gracefully. |
-| **Device** | Live `/api/system/status` — Wi-Fi RSSI meter, time-sync, DB health, free-heap gauge, network info. Polls every 15s. |
+| **Memory** | The `/api/memory` key/label store (`entity` / `owner` / `name` / `key`). **Passcode-gated** — `17021998` live, `11111` in demo (session-scoped, re-locks on data-source switch). The `key` column renders as a **password**: masked by default with a reveal (eye) toggle and a copy button; the create/edit form uses the same masked input. Full CRUD, 200-row limit. |
+| **Device** | Live `/api/system/status` — Wi-Fi RSSI meter, time-sync, DB health, heap + flash + PSRAM gauges, network info. Polls every 15s. |
 | **Settings** | Switch between **Demo** and **Live** data, set the device URL, test the connection, light/dark theme. |
 
 Page navigation uses a blur + rise transition; cards stagger in; charts animate their draw.

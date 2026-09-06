@@ -5,6 +5,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { AssetsPage } from '@/pages/Assets';
 import { RecurringPage } from '@/pages/Recurring';
 import { PendingPage } from '@/pages/Pending';
+import { MemoryPage } from '@/pages/Memory';
 import { SystemPage } from '@/pages/System';
 import { SettingsPage } from '@/pages/Settings';
 import { NotFound } from '@/pages/NotFound';
@@ -18,6 +19,7 @@ export function App() {
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/recurring" element={<RecurringPage />} />
           <Route path="/pending" element={<PendingPage />} />
+          <Route path="/memory" element={<MemoryPage />} />
           <Route path="/system" element={<SystemPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/404" element={<NotFound />} />

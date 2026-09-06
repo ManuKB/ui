@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '@/context/SettingsContext';
 import { toast } from '@/components/ui/toast';
-import { ApiError, type AssetInput, type RecurringInput } from '@/types/api';
+import { ApiError, type AssetInput, type MemoryFilters, type MemoryInput, type RecurringInput } from '@/types/api';
 
 const k = {
   status: ['system-status'] as const,
@@ -10,6 +10,7 @@ const k = {
   recurring: ['recurring'] as const,
   recurringOne: (id: string) => ['recurring', id] as const,
   pending: ['recurring', 'pending'] as const,
+  memory: ['memory'] as const,
 };
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : (e as Error)?.message ?? 'Unexpected error');
@@ -41,6 +42,49 @@ export function usePendingRecurring() {
     queryFn: () => api.listPendingRecurring(),
     retry: 0,
   });
+}
+
+export function useMemory(filters?: MemoryFilters) {
+  const { api, mode } = useSettings();
+  return useQuery({
+    queryKey: [...k.memory, mode, filters ?? {}],
+    queryFn: () => api.listMemory(filters),
+  });
+}
+
+export function useMemoryMutations() {
+  const { api } = useSettings();
+  const qc = useQueryClient();
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['memory'] });
+
+  const create = useMutation({
+    mutationFn: (input: MemoryInput) => api.createMemory(input),
+    onSuccess: (m) => {
+      invalidate();
+      toast.success('Memory row created', `${m.id} · ${m.name}`);
+    },
+    onError: (e) => toast.error('Could not create row', errMsg(e)),
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: MemoryInput }) => api.updateMemory(id, input),
+    onSuccess: (m) => {
+      invalidate();
+      toast.success('Memory row updated', `${m.id} · ${m.name}`);
+    },
+    onError: (e) => toast.error('Could not update row', errMsg(e)),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteMemory(id),
+    onSuccess: (r) => {
+      invalidate();
+      toast.success('Memory row deleted', r.deleted);
+    },
+    onError: (e) => toast.error('Could not delete row', errMsg(e)),
+  });
+
+  return { create, update, remove };
 }
 
 function useInvalidateAll() {

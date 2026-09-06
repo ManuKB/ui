@@ -1,9 +1,13 @@
 import {
   ApiError,
   MAX_ASSETS,
+  MAX_MEMORY,
   MAX_RECURRING,
   type Asset,
   type AssetInput,
+  type MemoryEntry,
+  type MemoryFilters,
+  type MemoryInput,
   type ProcessResult,
   type RecurringInput,
   type RecurringRule,
@@ -18,7 +22,11 @@ const LS_KEY = 'savings-tracker:mock-db:v1';
 interface DB {
   assets: Asset[];
   recurring: Omit<RecurringRule, 'status' | 'asset_name'>[];
+  memory: MemoryEntry[];
 }
+
+let memSeq = 100;
+const genMemId = () => `mem_${Date.now().toString(36)}_${++memSeq}`;
 
 function daysFromNow(n: number): string {
   const d = new Date();
@@ -28,20 +36,20 @@ function daysFromNow(n: number): string {
 
 function seed(): DB {
   const assets: Asset[] = [
-    { id: 'A001', name: 'HDFC Savings', type: 'BANK', amount: 512500.75, interest_rate: 3.0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'Primary salary account' },
-    { id: 'A002', name: 'ICICI Savings', type: 'BANK', amount: 184300, interest_rate: 3.5, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
-    { id: 'A003', name: 'HDFC FD 7%', type: 'FD', amount: 1000000, interest_rate: 7.0, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Monthly payout to HDFC Savings' },
-    { id: 'A004', name: 'SBI Tax Saver FD', type: 'FD', amount: 150000, interest_rate: 6.75, interest_type: 'CUMULATIVE', update_type: 'RECURRING', active: true, comment: '5-year lock-in' },
-    { id: 'A005', name: 'Axis Cumulative FD', type: 'FD', amount: 420000, interest_rate: 7.25, interest_type: 'CUMULATIVE', update_type: 'RECURRING', active: true, comment: null },
-    { id: 'A006', name: 'Nifty 50 Index Fund', type: 'STOCK', amount: 875600, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'SIP since 2021' },
-    { id: 'A007', name: 'Reliance Shares', type: 'STOCK', amount: 246800, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
-    { id: 'A008', name: 'RBI Floating Rate Bond', type: 'BOND', amount: 300000, interest_rate: 8.05, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Half-yearly coupon' },
-    { id: 'A009', name: 'NHAI Tax-Free Bond', type: 'BOND', amount: 200000, interest_rate: 5.75, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: null },
-    { id: 'A010', name: 'Loan to Ravi', type: 'LENDING', amount: 75000, interest_rate: 12.0, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Repayment by Mar 2027' },
-    { id: 'A011', name: 'Cash on hand', type: 'CASH', amount: 18500, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
-    { id: 'A012', name: 'Emergency Cash', type: 'CASH', amount: 50000, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'Home safe' },
+    { id: 'A001', name: 'HDFC Savings', type: 'BANK', amount: 512.5, interest_rate: 3.0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'Primary salary account' },
+    { id: 'A002', name: 'ICICI Savings', type: 'BANK', amount: 184.3, interest_rate: 3.5, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
+    { id: 'A003', name: 'HDFC FD 7%', type: 'FD', amount: 1000, interest_rate: 7.0, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Monthly payout to HDFC Savings' },
+    { id: 'A004', name: 'SBI Tax Saver FD', type: 'FD', amount: 150, interest_rate: 6.75, interest_type: 'CUMULATIVE', update_type: 'RECURRING', active: true, comment: '5-year lock-in' },
+    { id: 'A005', name: 'Axis Cumulative FD', type: 'FD', amount: 420, interest_rate: 7.25, interest_type: 'CUMULATIVE', update_type: 'RECURRING', active: true, comment: null },
+    { id: 'A006', name: 'Nifty 50 Index Fund', type: 'STOCK', amount: 875.6, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'SIP since 2021' },
+    { id: 'A007', name: 'Reliance Shares', type: 'STOCK', amount: 246.8, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
+    { id: 'A008', name: 'RBI Floating Rate Bond', type: 'BOND', amount: 300, interest_rate: 8.05, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Half-yearly coupon' },
+    { id: 'A009', name: 'NHAI Tax-Free Bond', type: 'BOND', amount: 200, interest_rate: 5.75, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: null },
+    { id: 'A010', name: 'Loan to Ravi', type: 'LENDING', amount: 75, interest_rate: 12.0, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'Repayment by Mar 2027' },
+    { id: 'A011', name: 'Cash on hand', type: 'CASH', amount: 18.5, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: null },
+    { id: 'A012', name: 'Emergency Cash', type: 'CASH', amount: 50, interest_rate: 0, interest_type: 'NONE', update_type: 'MANUAL', active: true, comment: 'Home safe' },
     { id: 'A013', name: 'Old Kotak FD (matured)', type: 'FD', amount: 0, interest_rate: 6.5, interest_type: 'NONE', update_type: 'MANUAL', active: false, comment: 'Closed Jan 2026' },
-    { id: 'A014', name: 'Gold Sovereign Bond', type: 'BOND', amount: 260000, interest_rate: 2.5, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'SGB 2023-24 Series' },
+    { id: 'A014', name: 'Gold Sovereign Bond', type: 'BOND', amount: 260, interest_rate: 2.5, interest_type: 'MONTHLY', update_type: 'RECURRING', active: true, comment: 'SGB 2023-24 Series' },
   ];
 
   const recurring: DB['recurring'] = [
@@ -54,17 +62,31 @@ function seed(): DB {
     { id: 'R007', asset_id: 'A009', repeat_type: 'MONTHLY', next_run: daysFromNow(15), interest_mode: 'SIMPLE', target_bank_id: 'A001', auto_enabled: false, last_run: null, active: false, comment: 'Paused — NHAI bond' },
   ];
 
-  return { assets, recurring };
+  const memory: MemoryEntry[] = [
+    { id: 'mem_seed_1', entity: 'asset', owner: 'A003', name: 'nickname', key: 'Rainy-day FD' },
+    { id: 'mem_seed_2', entity: 'asset', owner: 'A001', name: 'account_no', key: '5010 0234 9981 2210' },
+    { id: 'mem_seed_3', entity: 'asset', owner: 'A001', name: 'net_banking_pin', key: '48213' },
+    { id: 'mem_seed_4', entity: 'asset', owner: 'A006', name: 'broker_login', key: 'ZERO-4471-KX' },
+    { id: 'mem_seed_5', entity: 'recurring', owner: 'R001', name: 'note', key: 'confirm with branch before 5th' },
+    { id: 'mem_seed_6', entity: 'device', owner: 'savings-esp32', name: 'wifi_psk', key: 'hunter2-Galaxy-5G' },
+    { id: 'mem_seed_7', entity: 'device', owner: 'savings-esp32', name: 'api_token', key: 'sk_live_9f2b71c4e8a04d6fbb31' },
+    { id: 'mem_seed_8', entity: 'user', owner: 'mohan', name: 'upi_pin', key: '901733' },
+    { id: 'mem_seed_9', entity: 'asset', owner: 'A010', name: 'borrower_phone', key: '+91 98840 55127' },
+    { id: 'mem_seed_10', entity: 'asset', owner: 'A008', name: 'demat_id', key: 'IN30 0214 1099 7742' },
+  ];
+
+  return { assets, recurring, memory };
 }
 
 function load(): DB {
+  const fresh = seed();
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw) as DB;
+    // Merge so databases saved before a field was added still get seeded defaults.
+    if (raw) return { ...fresh, ...(JSON.parse(raw) as Partial<DB>) };
   } catch {
     /* ignore */
   }
-  const fresh = seed();
   save(fresh);
   return fresh;
 }
@@ -365,6 +387,75 @@ export const mockApi = {
     save(db);
     return withStatus(r);
   },
+
+  async listMemory(filters?: MemoryFilters): Promise<MemoryEntry[]> {
+    await delay();
+    let rows = [...db.memory];
+    for (const f of ['entity', 'owner', 'name', 'key'] as const) {
+      const v = filters?.[f];
+      if (v) rows = rows.filter((r) => r[f] === v);
+    }
+    return rows.sort((a, b) => a.id.localeCompare(b.id));
+  },
+
+  async getMemory(id: string): Promise<MemoryEntry> {
+    await delay(150);
+    const r = db.memory.find((x) => x.id === id);
+    if (!r) throw new ApiError(404, { error: 'MEMORY_NOT_FOUND', message: `Memory row ${id} does not exist` });
+    return r;
+  },
+
+  async createMemory(input: MemoryInput): Promise<MemoryEntry> {
+    await delay();
+    const row = coerceMemory(input, String(input.id ?? '').trim() || genMemId());
+    validateMemory(row);
+    if (db.memory.some((m) => m.id === row.id))
+      throw new ApiError(409, { error: 'DUPLICATE_ID', message: `Memory row ${row.id} already exists` });
+    if (db.memory.length >= MAX_MEMORY)
+      throw new ApiError(409, { error: 'LIMIT_REACHED', message: `Maximum of ${MAX_MEMORY} memory rows reached` });
+    db.memory.push(row);
+    save(db);
+    return row;
+  },
+
+  async updateMemory(id: string, input: MemoryInput): Promise<MemoryEntry> {
+    await delay();
+    const idx = db.memory.findIndex((m) => m.id === id);
+    if (idx < 0) throw new ApiError(404, { error: 'MEMORY_NOT_FOUND', message: `Memory row ${id} does not exist` });
+    const row = coerceMemory(input, id);
+    validateMemory(row);
+    db.memory[idx] = row;
+    save(db);
+    return row;
+  },
+
+  async deleteMemory(id: string): Promise<{ deleted: string }> {
+    await delay();
+    if (!db.memory.some((m) => m.id === id))
+      throw new ApiError(404, { error: 'MEMORY_NOT_FOUND', message: `Memory row ${id} does not exist` });
+    db.memory = db.memory.filter((m) => m.id !== id);
+    save(db);
+    return { deleted: id };
+  },
 };
+
+function coerceMemory(input: MemoryInput, id: string): MemoryEntry {
+  return {
+    id,
+    entity: String(input.entity ?? '').trim(),
+    owner: String(input.owner ?? '').trim(),
+    name: String(input.name ?? '').trim(),
+    key: String(input.key ?? ''),
+  };
+}
+
+function validateMemory(m: MemoryEntry) {
+  if (!m.name) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'name is required' });
+  if (m.id.length > 64) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'id must be <= 64 chars' });
+  if (m.entity.length > 128) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'entity must be <= 128 chars' });
+  if (m.owner.length > 128) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'owner must be <= 128 chars' });
+  if (m.name.length > 128) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'name must be <= 128 chars' });
+  if (m.key.length > 256) throw new ApiError(400, { error: 'VALIDATION_ERROR', message: 'key must be <= 256 chars' });
+}
 
 export type MockApi = typeof mockApi;

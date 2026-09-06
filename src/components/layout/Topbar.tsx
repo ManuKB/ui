@@ -9,6 +9,7 @@ const TITLES: Record<string, string> = {
   '/assets': 'Assets',
   '/recurring': 'Recurring rules',
   '/pending': 'Pending actions',
+  '/memory': 'Memory',
   '/system': 'Device status',
   '/settings': 'Settings',
 };

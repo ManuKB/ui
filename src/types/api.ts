@@ -16,6 +16,7 @@ export const INTEREST_MODES: InterestMode[] = ['SIMPLE', 'COMPOUND', 'NONE'];
 
 export const MAX_ASSETS = 100;
 export const MAX_RECURRING = 100;
+export const MAX_MEMORY = 200;
 
 export interface Asset {
   id: string;
@@ -98,6 +99,29 @@ export interface SkipResult {
   id: string;
   skipped: boolean;
   next_run: string;
+}
+
+export interface MemoryEntry {
+  id: string;
+  entity: string;
+  owner: string;
+  name: string;
+  key: string;
+}
+
+export interface MemoryInput {
+  id?: string;
+  entity: string;
+  owner: string;
+  name: string;
+  key: string;
+}
+
+export interface MemoryFilters {
+  entity?: string;
+  owner?: string;
+  name?: string;
+  key?: string;
 }
 
 export interface ApiErrorBody {
