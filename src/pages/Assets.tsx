@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Pencil, Trash2, Wallet, X, ChevronRight } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Wallet, X, ChevronRight, Check } from 'lucide-react';
 import { useAssets, useAssetMutations, useRecurring } from '@/api/hooks';
 import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton, Fab } from '@/components/ui/primitives';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -25,6 +25,17 @@ export function AssetsPage() {
   const [toDelete, setToDelete] = useState<Asset | null>(null);
   const [detail, setDetail] = useState<Asset | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  // leave multi-select once nothing is selected
+  useEffect(() => {
+    if (selectionMode && selectedIds.size === 0) setSelectionMode(false);
+  }, [selectionMode, selectedIds]);
+
+  const exitSelection = () => {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+  };
 
   const usedIds = useMemo(() => {
     const s = new Set<string>();
@@ -85,7 +96,7 @@ export function AssetsPage() {
         </div>
         <div className="page-head__actions">
           {selectedIds.size > 0 && (
-            <Button variant="subtle" size="sm" icon={<X size={15} />} onClick={() => setSelectedIds(new Set())}>
+            <Button variant="subtle" size="sm" icon={<X size={15} />} onClick={exitSelection}>
               Clear selection
             </Button>
           )}
@@ -104,6 +115,9 @@ export function AssetsPage() {
         <Card className="selection-summary">
           <span><b>{selectedAssets.length}</b> selected</span>
           <strong className="mono">{fmtMoney(selectedTotal)}</strong>
+          <button className="selection-summary__clear" onClick={exitSelection} aria-label="Clear selection">
+            <X size={15} />
+          </button>
         </Card>
       )}
 
@@ -198,27 +212,29 @@ export function AssetsPage() {
             </table>
           </Card>
 
-          {/* mobile — compact tiles, tap for detail */}
+          {/* mobile — compact tiles: tap for detail, press-and-hold to multi-select */}
           <motion.div variants={stagger} initial="hidden" animate="show" className="asset-tiles">
             {rows.map((a) => (
-              <motion.button
+              <AssetTile
                 key={a.id}
-                variants={riseItem}
-                type="button"
-                className={`asset-tile ${!a.active ? 'is-inactive' : ''}`}
-                onClick={() => setDetail(a)}
-              >
-                <AssetAvatar type={a.type} size={38} />
-                <span className="asset-tile__name">{a.name}</span>
-                <span className="asset-tile__amt mono">{fmtMoney(a.amount)}</span>
-                <ChevronRight size={16} className="asset-tile__go" />
-              </motion.button>
+                asset={a}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(a.id)}
+                onOpen={() => setDetail(a)}
+                onToggle={() => toggleSelected(a.id)}
+                onLongPress={() => {
+                  setSelectionMode(true);
+                  toggleSelected(a.id);
+                }}
+              />
             ))}
           </motion.div>
         </>
       )}
 
-      {(assets.data?.length ?? 0) < MAX_ASSETS && <Fab label="New asset" icon={<Plus size={18} />} onClick={openNew} />}
+      {!selectionMode && (assets.data?.length ?? 0) < MAX_ASSETS && (
+        <Fab label="New asset" icon={<Plus size={18} />} onClick={openNew} />
+      )}
 
       <AssetDetail
         asset={detail}
@@ -263,5 +279,86 @@ export function AssetsPage() {
         }}
       />
     </div>
+  );
+}
+
+const LONG_PRESS_MS = 420;
+
+function AssetTile({
+  asset,
+  selectionMode,
+  selected,
+  onOpen,
+  onToggle,
+  onLongPress,
+}: {
+  asset: Asset;
+  selectionMode: boolean;
+  selected: boolean;
+  onOpen: () => void;
+  onToggle: () => void;
+  onLongPress: () => void;
+}) {
+  const timer = useRef<number>();
+  const fired = useRef(false);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+
+  const clear = () => {
+    if (timer.current) {
+      window.clearTimeout(timer.current);
+      timer.current = undefined;
+    }
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (selectionMode) return;
+    fired.current = false;
+    origin.current = { x: e.clientX, y: e.clientY };
+    timer.current = window.setTimeout(() => {
+      fired.current = true;
+      navigator.vibrate?.(15);
+      onLongPress();
+    }, LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!timer.current || !origin.current) return;
+    if (Math.abs(e.clientX - origin.current.x) > 10 || Math.abs(e.clientY - origin.current.y) > 10) clear();
+  };
+
+  const onClick = () => {
+    if (fired.current) {
+      fired.current = false;
+      return; // long-press already handled it
+    }
+    if (selectionMode) onToggle();
+    else onOpen();
+  };
+
+  return (
+    <motion.button
+      variants={riseItem}
+      type="button"
+      className={`asset-tile ${!asset.active ? 'is-inactive' : ''} ${selected ? 'is-selected' : ''}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={clear}
+      onPointerLeave={clear}
+      onPointerCancel={clear}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={onClick}
+      aria-pressed={selectionMode ? selected : undefined}
+    >
+      {selectionMode ? (
+        <span className={`asset-tile__check ${selected ? 'is-on' : ''}`} aria-hidden>
+          {selected && <Check size={16} />}
+        </span>
+      ) : (
+        <AssetAvatar type={asset.type} size={38} />
+      )}
+      <span className="asset-tile__name">{asset.name}</span>
+      <span className="asset-tile__amt mono">{fmtMoney(asset.amount)}</span>
+      {selectionMode ? <span className="asset-tile__gap" /> : <ChevronRight size={16} className="asset-tile__go" />}
+    </motion.button>
   );
 }
