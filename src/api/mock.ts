@@ -332,7 +332,7 @@ export const mockApi = {
     if (r.last_run && r.last_run === r.next_run)
       throw new ApiError(409, { error: 'ALREADY_PROCESSED', message: `Occurrence ${r.next_run} of rule ${id} was already processed` });
 
-    const interest = occurrenceInterest(src.amount, src.interest_rate, r.repeat_type);
+    const interest = occurrenceInterest(src.amount, src.interest_rate);
     let bankCredited = 0;
     let sourceDelta = 0;
 

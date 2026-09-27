@@ -1,4 +1,4 @@
-import type { Asset, RecurringRule, RepeatType } from '@/types/api';
+import type { Asset, RecurringRule } from '@/types/api';
 import { advanceDate } from './recurring';
 import { todayISO } from './format';
 
@@ -17,10 +17,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * api/mock.ts `processRecurring`) — the projection below walks the same mechanics
  * forward in time instead of inventing a separate growth model.
  */
-export function occurrenceInterest(principal: number, annualRatePct: number, repeat: RepeatType): number {
-  const fractionOfYear =
-    repeat === 'DAILY' ? 1 / 365 : repeat === 'WEEKLY' ? 7 / 365 : repeat === 'MONTHLY' ? 1 / 12 : repeat === 'QUARTERLY' ? 1 / 4 : 1;
-  return round2(principal * (annualRatePct / 100) * fractionOfYear);
+export function occurrenceInterest(principal: number, annualRatePct: number): number {
+  // const fractionOfYear =
+  //   repeat === 'DAILY' ? 1 / 365 : repeat === 'WEEKLY' ? 7 / 365 : repeat === 'MONTHLY' ? 1 / 12 : repeat === 'QUARTERLY' ? 1 / 4 : 1;
+  return round2(principal * (annualRatePct / 100) * 1);
 }
 
 export interface AssetProjection {
@@ -98,7 +98,7 @@ export function projectPortfolio(
     let steps = 0;
     while (next.localeCompare(cap) <= 0 && steps < MAX_STEPS_PER_RULE) {
       const principal = simPrincipal.get(source.id) ?? source.amount;
-      const interest = occurrenceInterest(principal, source.interest_rate, rule.repeat_type);
+      const interest = occurrenceInterest(principal, source.interest_rate);
       if (interest !== 0) {
         if (source.interest_type === 'CUMULATIVE') {
           events.push({ date: next, assetId: source.id, delta: interest });

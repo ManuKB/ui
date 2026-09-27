@@ -9,5 +9,21 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: { port: 5173, host: true },
-  build: { outDir: 'dist', sourcemap: false },
+  build: {
+    outDir: "docs",
+    emptyOutDir: true,
+
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/index.js",
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith(".css")) {
+            return "assets/index.css";
+          }
+
+          return "assets/[name][extname]";
+        },
+      },
+    },
+  },
 });
