@@ -7,6 +7,7 @@ import {
   Wallet,
   Repeat,
   BellRing,
+  TrendingUp,
   MoreHorizontal,
   KeyRound,
   Cpu,
@@ -27,11 +28,12 @@ interface Tab {
 const PRIMARY: Tab[] = [
   { to: '/', label: 'Home', icon: LayoutDashboard, end: true },
   { to: '/assets', label: 'Assets', icon: Wallet },
-  { to: '/recurring', label: 'Recurring', icon: Repeat },
+  { to: '/prediction', label: 'Predict', icon: TrendingUp },
   { to: '/pending', label: 'Alerts', icon: BellRing, badge: 'pending' },
 ];
 
 const MORE: Tab[] = [
+  { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/memory', label: 'Memory', icon: KeyRound },
   { to: '/system', label: 'Device', icon: Cpu },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },

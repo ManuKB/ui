@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Wallet, Repeat, BellRing, KeyRound, Cpu, Settings } from 'lucide-react';
+import { LayoutDashboard, Wallet, Repeat, BellRing, TrendingUp, KeyRound, Cpu, Settings } from 'lucide-react';
 import { usePendingRecurring } from '@/api/hooks';
 
 const NAV = [
@@ -8,6 +8,7 @@ const NAV = [
   { to: '/assets', label: 'Assets', icon: Wallet },
   { to: '/recurring', label: 'Recurring', icon: Repeat },
   { to: '/pending', label: 'Pending actions', icon: BellRing, badgeKey: 'pending' as const },
+  { to: '/prediction', label: 'Prediction', icon: TrendingUp },
   { to: '/memory', label: 'Memory', icon: KeyRound },
   { to: '/system', label: 'Device', icon: Cpu },
   { to: '/settings', label: 'Settings', icon: Settings },

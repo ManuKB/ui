@@ -15,6 +15,7 @@ import {
   type SystemStatus,
 } from '@/types/api';
 import { advanceDate, deriveStatus, isPending } from '@/lib/recurring';
+import { occurrenceInterest } from '@/lib/prediction';
 import { todayISO } from '@/lib/format';
 
 const LS_KEY = 'savings-tracker:mock-db:v1';
@@ -154,13 +155,6 @@ function validateRecurring(input: RecurringInput) {
       message: 'a CUMULATIVE asset keeps its interest - target_bank_id must be empty',
     });
   }
-}
-
-/** Simplified monthly-equivalent interest for a single occurrence. */
-function occurrenceInterest(principal: number, annualRate: number, repeat: RecurringInput['repeat_type']): number {
-  const fractionOfYear =
-    repeat === 'DAILY' ? 1 / 365 : repeat === 'WEEKLY' ? 7 / 365 : repeat === 'MONTHLY' ? 1 / 12 : repeat === 'QUARTERLY' ? 1 / 4 : 1;
-  return Math.round(principal * (annualRate / 100) * fractionOfYear * 100) / 100;
 }
 
 export const mockApi = {

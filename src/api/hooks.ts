@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSettings } from '@/context/SettingsContext';
 import { toast } from '@/components/ui/toast';
 import { ApiError, type AssetInput, type MemoryFilters, type MemoryInput, type RecurringInput } from '@/types/api';
+import { projectPortfolio, type AssetSchedule } from '@/lib/prediction';
+import { EXPIRY_FIELD, SCHEDULE_ENTITY, START_FIELD, scheduleMemoryId, toScheduleMap } from '@/lib/schedule';
 
 const k = {
   status: ['system-status'] as const,
@@ -85,6 +88,72 @@ export function useMemoryMutations() {
   });
 
   return { create, update, remove };
+}
+
+export function useAssetSchedules() {
+  const { api, mode } = useSettings();
+  return useQuery({
+    queryKey: [...k.memory, mode, 'schedules'],
+    queryFn: async () => toScheduleMap(await api.listMemory({ entity: SCHEDULE_ENTITY })),
+  });
+}
+
+async function upsertScheduleField(
+  api: ReturnType<typeof useSettings>['api'],
+  assetId: string,
+  field: typeof START_FIELD | typeof EXPIRY_FIELD,
+  value: string | null,
+) {
+  const id = scheduleMemoryId(assetId, field);
+  const input: MemoryInput = { id, entity: SCHEDULE_ENTITY, owner: assetId, name: field, key: value ?? '' };
+  try {
+    await api.updateMemory(id, input);
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'MEMORY_NOT_FOUND') await api.createMemory(input);
+    else throw e;
+  }
+}
+
+export function useSetAssetSchedule() {
+  const { api } = useSettings();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ assetId, schedule }: { assetId: string; schedule: AssetSchedule }) => {
+      await upsertScheduleField(api, assetId, START_FIELD, schedule.start_date);
+      await upsertScheduleField(api, assetId, EXPIRY_FIELD, schedule.expiry_date);
+      return schedule;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['memory'] }),
+    onError: (e) => toast.error('Could not save schedule', errMsg(e)),
+  });
+}
+
+/** Composes assets + recurring rules + schedules into a portfolio projection for `targetDate` (YYYY-MM-DD). */
+export function usePrediction(targetDate: string) {
+  const assets = useAssets();
+  const rules = useRecurring();
+  const schedules = useAssetSchedules();
+  const ready = assets.isSuccess && rules.isSuccess && schedules.isSuccess;
+
+  const projection = useMemo(() => {
+    if (!ready || !assets.data || !rules.data || !schedules.data) return null;
+    return projectPortfolio(assets.data, rules.data, schedules.data, targetDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, assets.data, rules.data, schedules.data, targetDate]);
+
+  return {
+    projection,
+    assets: assets.data,
+    rules: rules.data,
+    schedules: schedules.data,
+    isLoading: assets.isLoading || rules.isLoading || schedules.isLoading,
+    isError: assets.isError || rules.isError || schedules.isError,
+    refetch: () => {
+      assets.refetch();
+      rules.refetch();
+      schedules.refetch();
+    },
+  };
 }
 
 function useInvalidateAll() {

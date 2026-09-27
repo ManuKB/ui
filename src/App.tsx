@@ -5,6 +5,7 @@ import { Dashboard } from '@/pages/Dashboard';
 import { AssetsPage } from '@/pages/Assets';
 import { RecurringPage } from '@/pages/Recurring';
 import { PendingPage } from '@/pages/Pending';
+import { PredictionPage } from '@/pages/Prediction';
 import { MemoryPage } from '@/pages/Memory';
 import { SystemPage } from '@/pages/System';
 import { SettingsPage } from '@/pages/Settings';
@@ -19,6 +20,7 @@ export function App() {
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/recurring" element={<RecurringPage />} />
           <Route path="/pending" element={<PendingPage />} />
+          <Route path="/prediction" element={<PredictionPage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/system" element={<SystemPage />} />
           <Route path="/settings" element={<SettingsPage />} />

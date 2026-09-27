@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { CalendarClock } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button, Field, Input, Select, Textarea, Toggle } from '@/components/ui/primitives';
 import { AssetTypeIcon } from '@/components/domain';
@@ -12,7 +13,7 @@ import {
   type InterestType,
   type UpdateType,
 } from '@/types/api';
-import { useAssetMutations } from '@/api/hooks';
+import { useAssetMutations, useAssetSchedules, useSetAssetSchedule } from '@/api/hooks';
 
 type Draft = {
   id: string;
@@ -24,6 +25,8 @@ type Draft = {
   update_type: UpdateType;
   active: boolean;
   comment: string;
+  start_date: string;
+  expiry_date: string;
 };
 
 const empty: Draft = {
@@ -36,9 +39,11 @@ const empty: Draft = {
   update_type: 'MANUAL',
   active: true,
   comment: '',
+  start_date: '',
+  expiry_date: '',
 };
 
-function toDraft(a: Asset): Draft {
+function toDraft(a: Asset, start_date: string, expiry_date: string): Draft {
   return {
     id: a.id,
     name: a.name,
@@ -49,6 +54,8 @@ function toDraft(a: Asset): Draft {
     update_type: a.update_type,
     active: a.active,
     comment: a.comment ?? '',
+    start_date,
+    expiry_date,
   };
 }
 
@@ -62,15 +69,28 @@ export function AssetForm({
   editing: Asset | null;
 }) {
   const { create, update } = useAssetMutations();
+  const { data: schedules } = useAssetSchedules();
+  const setSchedule = useSetAssetSchedule();
   const [draft, setDraft] = useState<Draft>(empty);
+  const [initialSchedule, setInitialSchedule] = useState({ start_date: '', expiry_date: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (open) {
-      setDraft(editing ? toDraft(editing) : empty);
-      setErrors({});
+    if (!open) return;
+    setErrors({});
+    if (editing) {
+      const sched = schedules?.[editing.id];
+      const start = sched?.start_date ?? '';
+      const expiry = sched?.expiry_date ?? '';
+      setDraft(toDraft(editing, start, expiry));
+      setInitialSchedule({ start_date: start, expiry_date: expiry });
+    } else {
+      setDraft(empty);
+      setInitialSchedule({ start_date: '', expiry_date: '' });
     }
-  }, [open, editing]);
+    // schedules load asynchronously; re-sync once they arrive for an asset being edited
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing, schedules]);
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
@@ -82,14 +102,17 @@ export function AssetForm({
     if (Number(draft.amount) < 0 || Number.isNaN(Number(draft.amount))) e.amount = 'Amount must be ≥ 0';
     if (Number(draft.interest_rate) < 0 || Number.isNaN(Number(draft.interest_rate)))
       e.interest_rate = 'Rate must be ≥ 0';
+    if (draft.start_date && draft.expiry_date && draft.expiry_date < draft.start_date)
+      e.expiry_date = 'Expiry must be on or after the start date';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const submit = async () => {
     if (!validate()) return;
+    const id = editing ? editing.id : draft.id.trim();
     const payload: AssetInput = {
-      id: draft.id.trim(),
+      id,
       name: draft.name.trim(),
       type: draft.type,
       amount: Number(draft.amount),
@@ -100,15 +123,24 @@ export function AssetForm({
       comment: draft.comment.trim() || null,
     };
     try {
-      if (editing) await update.mutateAsync({ id: editing.id, input: payload });
+      if (editing) await update.mutateAsync({ id, input: payload });
       else await create.mutateAsync(payload);
+
+      const scheduleChanged =
+        draft.start_date !== initialSchedule.start_date || draft.expiry_date !== initialSchedule.expiry_date;
+      if (scheduleChanged) {
+        await setSchedule.mutateAsync({
+          assetId: id,
+          schedule: { start_date: draft.start_date || null, expiry_date: draft.expiry_date || null },
+        });
+      }
       onClose();
     } catch {
       /* toast handled in hook */
     }
   };
 
-  const busy = create.isPending || update.isPending;
+  const busy = create.isPending || update.isPending || setSchedule.isPending;
   const interestHint = useMemo(() => {
     if (draft.interest_type === 'MONTHLY') return 'Interest is paid out — pair with a recurring rule crediting a BANK asset.';
     if (draft.interest_type === 'CUMULATIVE') return 'Interest compounds inside this asset — recurring rule must have no target bank.';
@@ -206,6 +238,19 @@ export function AssetForm({
             <span className="field__msg">{draft.active ? 'Counted in totals & usable by rules' : 'Hidden from active totals'}</span>
           </div>
         </div>
+
+        <div className="form-section">
+          <CalendarClock size={15} />
+          <span>Prediction schedule</span>
+        </div>
+
+        <Field label="Start date" hint="When this asset started earning — used to project future value">
+          <Input type="date" value={draft.start_date} onChange={(e) => set('start_date', e.target.value)} />
+        </Field>
+
+        <Field label="Expiry date" error={errors.expiry_date} hint="Maturity date, if any — growth stops here in predictions. Leave blank if it never matures.">
+          <Input type="date" value={draft.expiry_date} onChange={(e) => set('expiry_date', e.target.value)} />
+        </Field>
 
         <Field label="Comment">
           <Textarea value={draft.comment} placeholder="Optional note" onChange={(e) => set('comment', e.target.value)} />
