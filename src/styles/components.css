@@ -568,6 +568,7 @@
 .asset-tile.is-inactive { opacity: 0.5; }
 .asset-tile.is-selected { border-color: var(--brand-400); background: color-mix(in srgb, var(--brand-500) 10%, transparent); }
 .asset-tile__name { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asset-tile__amt-wrap { display: inline-flex; align-items: center; gap: 6px; }
 .asset-tile__amt { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 .asset-tile__go { color: var(--text-dim); flex-shrink: 0; }
 .asset-tile__gap { width: 16px; }

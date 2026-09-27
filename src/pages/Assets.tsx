@@ -364,7 +364,10 @@ function AssetTile({
         <AssetAvatar type={asset.type} size={38} />
       )}
       <span className="asset-tile__name">{asset.name}</span>
-      <span className="asset-tile__amt mono">{fmtMoney(asset.amount)}</span>
+      <span className="asset-tile__amt-wrap">
+        <InterestRateIcon rate={asset.interest_rate} />
+        <span className="asset-tile__amt mono">{fmtMoney(asset.amount)}</span>
+      </span>
       {selectionMode ? <span className="asset-tile__gap" /> : <ChevronRight size={16} className="asset-tile__go" />}
     </motion.button>
   );
