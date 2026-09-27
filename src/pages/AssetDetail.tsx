@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button, Badge, IconButton } from '@/components/ui/primitives';
-import { AssetAvatar, ASSET_TYPE_META } from '@/components/domain';
+import { AssetAvatar, ASSET_TYPE_META, InterestRateIcon } from '@/components/domain';
 import { useAssetMutations } from '@/api/hooks';
 import { fmtMoney, fmtPct } from '@/lib/format';
 import type { Asset } from '@/types/api';
@@ -155,7 +155,13 @@ export function AssetDetail({
               <span>Interest</span>
               <b>{asset.interest_type === 'NONE' ? 'None' : `${asset.interest_type} · ${fmtPct(asset.interest_rate)}`}</b>
             </li>
-            <li><span>Rate</span><b className="mono">{asset.interest_rate ? fmtPct(asset.interest_rate) : '—'}</b></li>
+            <li>
+              <span>Rate</span>
+              <b className="mono rate-cell">
+                <InterestRateIcon rate={asset.interest_rate} />
+                {asset.interest_rate ? fmtPct(asset.interest_rate) : '—'}
+              </b>
+            </li>
             <li><span>Updated by</span><b>{asset.update_type}</b></li>
             <li><span>Status</span><b>{asset.active ? 'Active' : 'Inactive'}</b></li>
           </ul>

@@ -5,6 +5,7 @@ import {
   Scroll,
   HandCoins,
   Wallet,
+  VolumeX,
   type LucideIcon,
 } from 'lucide-react';
 import type { AssetType, RecurringStatus } from '@/types/api';
@@ -35,6 +36,15 @@ export function AssetAvatar({ type, size = 40 }: { type: AssetType; size?: numbe
     >
       <Icon size={size * 0.5} />
     </span>
+  );
+}
+
+/** Mute icon for 0% interest, growth icon otherwise — used wherever an asset's rate is shown. */
+export function InterestRateIcon({ rate, size = 14 }: { rate: number; size?: number }) {
+  return rate > 0 ? (
+    <TrendingUp size={size} className="rate-icon rate-icon--growth" aria-label="Earning interest" />
+  ) : (
+    <VolumeX size={size} className="rate-icon rate-icon--mute" aria-label="No interest" />
   );
 }
 

@@ -528,6 +528,10 @@
 .selection-col { width: 42px; text-align: center !important; padding-left: 10px !important; padding-right: 4px !important; }
 .selection-col input, .asset-card__head input { width: 16px; height: 16px; accent-color: var(--brand-500); cursor: pointer; }
 .ta-r { text-align: right; }
+.rate-cell { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.rate-icon { flex-shrink: 0; }
+.rate-icon--growth { color: var(--accent-emerald); }
+.rate-icon--mute { color: var(--text-dim); }
 .cell-asset { display: flex; align-items: center; gap: 10px; }
 .cell-asset b { font-size: 0.86rem; display: block; }
 .cell-asset span { font-size: 0.72rem; color: var(--text-dim); }

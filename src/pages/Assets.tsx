@@ -4,7 +4,7 @@ import { Plus, Search, Pencil, Trash2, Wallet, X, ChevronRight, Check } from 'lu
 import { useAssets, useAssetMutations, useRecurring } from '@/api/hooks';
 import { Card, Button, Badge, Spinner, EmptyState, Input, Segmented, IconButton, Fab } from '@/components/ui/primitives';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { AssetAvatar, AssetTypeIcon, ASSET_TYPE_META } from '@/components/domain';
+import { AssetAvatar, AssetTypeIcon, InterestRateIcon, ASSET_TYPE_META } from '@/components/domain';
 import { AssetForm } from './forms/AssetForm';
 import { AssetDetail } from './AssetDetail';
 import { stagger, riseItem } from '@/components/layout/Layout';
@@ -186,7 +186,12 @@ export function AssetsPage() {
                       </span>
                     </td>
                     <td className="ta-r mono">{fmtMoney(a.amount)}</td>
-                    <td className="ta-r mono">{a.interest_rate ? fmtPct(a.interest_rate) : '—'}</td>
+                    <td className="ta-r mono">
+                      <span className="rate-cell">
+                        <InterestRateIcon rate={a.interest_rate} />
+                        {a.interest_rate ? fmtPct(a.interest_rate) : '—'}
+                      </span>
+                    </td>
                     <td>{a.interest_type === 'NONE' ? '—' : <Badge tone={a.interest_type === 'MONTHLY' ? 'info' : 'violet'}>{a.interest_type}</Badge>}</td>
                     <td>
                       <span className="dim">{a.update_type}</span>
