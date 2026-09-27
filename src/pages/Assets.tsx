@@ -59,6 +59,8 @@ export function AssetsPage() {
   }, [assets.data, filter, q]);
 
   const total = rows.filter((a) => a.active).reduce((s, a) => s + a.amount, 0);
+  // re-resolve against the latest query data so an in-sheet edit (e.g. amount) reflects immediately
+  const detailAsset = detail ? assets.data?.find((a) => a.id === detail.id) ?? detail : null;
   const selectedAssets = (assets.data ?? []).filter((a) => selectedIds.has(a.id));
   const selectedTotal = selectedAssets.reduce((s, a) => s + a.amount, 0);
 
@@ -237,7 +239,7 @@ export function AssetsPage() {
       )}
 
       <AssetDetail
-        asset={detail}
+        asset={detailAsset}
         open={!!detail}
         onClose={() => setDetail(null)}
         inUse={detail ? usedIds.has(detail.id) : false}

@@ -591,6 +591,41 @@
 .asset-detail__amt { font-size: 1.55rem; font-weight: 750; letter-spacing: -0.02em; }
 .asset-detail__note { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; border-left: 2px solid var(--border-strong); padding-left: 12px; }
 
+.asset-detail__amt-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 2px;
+  margin-left: -2px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s, border-color 0.14s;
+}
+.asset-detail__amt-edit:hover,
+.asset-detail__amt-edit:active { background: var(--surface-2); border-color: var(--brand-400); }
+.asset-detail__amt-pencil { color: var(--brand-400); flex-shrink: 0; }
+
+.asset-detail__amt-form { display: flex; align-items: center; gap: 6px; }
+.asset-detail__amt-prefix { font-size: 1.3rem; font-weight: 700; color: var(--text-muted); }
+.asset-detail__amt-input {
+  width: 11ch;
+  padding: 6px 8px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: var(--surface-solid);
+  border: 1.5px solid var(--brand-400);
+  border-radius: var(--radius-xs);
+  color: var(--text);
+}
+.asset-detail__amt-input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-400) 22%, transparent); }
+.asset-detail__amt-save { color: var(--accent-emerald); border-color: color-mix(in srgb, var(--accent-emerald) 30%, transparent); }
+.asset-detail__amt-save:hover:not(:disabled) { background: color-mix(in srgb, var(--accent-emerald) 14%, transparent); }
+.asset-detail__amt-error { font-size: 0.76rem; font-weight: 600; color: var(--accent-rose); }
+
 /* ---------------- Asset cards (used by Memory mobile) ---------------- */
 .asset-cards { display: none; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 @media (max-width: 960px) { .asset-cards { display: flex; flex-direction: column; } }
