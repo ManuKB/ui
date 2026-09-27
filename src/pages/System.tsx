@@ -64,13 +64,15 @@ export function SystemPage() {
           <h2 className="page-head__title">{s.device}</h2>
           <p className="page-head__sub mono">{s.datetime}</p>
         </div>
-        <Button
-          variant="subtle"
-          icon={<RefreshCw size={16} className={status.isFetching ? 'spin' : ''} />}
-          onClick={() => status.refetch()}
-        >
-          Refresh
-        </Button>
+        <div className="page-head__actions">
+          <Button
+            variant="subtle"
+            icon={<RefreshCw size={16} className={status.isFetching ? 'spin' : ''} />}
+            onClick={() => status.refetch()}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="sys-grid">

@@ -87,7 +87,7 @@ export function AssetsPage() {
     return <EmptyState icon={<Wallet size={28} />} title="Could not load assets" hint={(assets.error as Error).message} />;
 
   return (
-    <div className="stack">
+    <div className="stack stack--fab">
       <div className="page-head">
         <div>
           <p className="page-head__crumb">Portfolio</p>

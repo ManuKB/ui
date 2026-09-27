@@ -76,9 +76,11 @@ export function RecurringPage() {
             {recurring.data?.length ?? 0} rules · {counts.DUE ?? 0} due · {counts.OVERDUE ?? 0} overdue
           </p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={openNew}>
-          New rule
-        </Button>
+        <div className="page-head__actions">
+          <Button icon={<Plus size={16} />} onClick={openNew}>
+            New rule
+          </Button>
+        </div>
       </div>
 
       <Card className="toolbar">

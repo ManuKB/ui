@@ -414,6 +414,8 @@
 
 /* ---------------- Page head / layout ---------------- */
 .stack { display: flex; flex-direction: column; gap: 18px; }
+/* extra clearance so a page's floating action button never sits over the last list row */
+@media (max-width: 960px) { .stack--fab { padding-bottom: 76px; } }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .page-head__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .page-head__crumb { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--brand-400); font-weight: 700; }

@@ -72,7 +72,7 @@ function MemoryList() {
     return <EmptyState icon={<KeyRound size={28} />} title="Could not load memory rows" hint={(memory.error as Error).message} />;
 
   return (
-    <div className="stack">
+    <div className="stack stack--fab">
       <div className="page-head">
         <div>
           <p className="page-head__crumb">Restricted</p>
@@ -81,7 +81,7 @@ function MemoryList() {
             {memory.data?.length ?? 0} of {MAX_MEMORY} rows · secure key / label store
           </p>
         </div>
-        <div className="settings__row">
+        <div className="page-head__actions">
           <Button variant="ghost" size="sm" icon={<Lock size={14} />} onClick={relock}>
             Lock
           </Button>
