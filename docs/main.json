@@ -1,0 +1,9 @@
+{
+  "baseUrl": "https://manukb.github.io/ui/",
+  "entry": "index.html",
+  "files": [
+    "index.html",
+    "assets/index.js",
+    "assets/index.css"
+  ]
+}
