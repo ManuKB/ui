@@ -37,7 +37,7 @@ export function PredictionPage() {
       .filter((a) => a.active)
       .map((a) => ({ asset: a, projection: projection.perAsset.get(a.id) as AssetProjection }))
       .filter((r) => r.projection)
-      .sort((a, b) => b.projection.predicted - a.projection.predicted);
+      .sort((a, b) => b.projection.gain - a.projection.gain || b.projection.predicted - a.projection.predicted);
   }, [assets, projection]);
 
   const allocation: DonutSlice[] = useMemo(() => {
