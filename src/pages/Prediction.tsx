@@ -10,13 +10,12 @@ import { PredictionAssetDetail } from './PredictionAssetDetail';
 import { AssetForm } from './forms/AssetForm';
 import { stagger, riseItem } from '@/components/layout/Layout';
 import { fmtMoney, fmtCompact, fmtDate, todayISO } from '@/lib/format';
+import { addMonthsISO } from '@/lib/recurring';
 import type { AssetProjection } from '@/lib/prediction';
 import type { Asset, AssetType } from '@/types/api';
 
 function addYears(iso: string, years: number) {
-  const d = new Date(iso + 'T00:00:00');
-  d.setFullYear(d.getFullYear() + years);
-  return d.toISOString().slice(0, 10);
+  return addMonthsISO(iso, years * 12);
 }
 
 function statusBadge(p: AssetProjection) {

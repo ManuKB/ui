@@ -28,7 +28,11 @@ export const fmtBytes = (b: number) => {
   return `${(b / 1024 / 1024).toFixed(2)} MB`;
 };
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+// Local calendar date (toISOString() is UTC and shows "yesterday" early morning in IST).
+export const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';

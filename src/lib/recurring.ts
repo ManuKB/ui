@@ -20,16 +20,36 @@ export function deriveStatus(
   return cmp === 0 ? 'DUE' : 'OVERDUE';
 }
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Pure-UTC calendar math (timezone independent) mirroring the firmware's
+ * DateUtil::nextRun, incl. month-end clamping (Jan 31 + 1 month = Feb 28/29).
+ * Mixing local-time parsing with toISOString() made dates stand still in
+ * timezones ahead of UTC (e.g. IST).
+ */
+export function addDaysISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+export function addMonthsISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const total = y * 12 + (m - 1) + n;
+  const ny = Math.floor(total / 12);
+  const nm = total - ny * 12;
+  const daysInMonth = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+  return `${ny}-${pad2(nm + 1)}-${pad2(Math.min(d, daysInMonth))}`;
+}
+
 export function advanceDate(iso: string, repeat: RepeatType): string {
-  const d = new Date(iso + 'T00:00:00');
   switch (repeat) {
-    case 'DAILY': d.setDate(d.getDate() + 1); break;
-    case 'WEEKLY': d.setDate(d.getDate() + 7); break;
-    case 'MONTHLY': d.setMonth(d.getMonth() + 1); break;
-    case 'QUARTERLY': d.setMonth(d.getMonth() + 3); break;
-    case 'YEARLY': d.setFullYear(d.getFullYear() + 1); break;
+    case 'DAILY': return addDaysISO(iso, 1);
+    case 'WEEKLY': return addDaysISO(iso, 7);
+    case 'MONTHLY': return addMonthsISO(iso, 1);
+    case 'QUARTERLY': return addMonthsISO(iso, 3);
+    case 'YEARLY': return addMonthsISO(iso, 12);
   }
-  return d.toISOString().slice(0, 10);
 }
 
 export const STATUS_META: Record<RecurringStatus, { label: string; tone: string }> = {

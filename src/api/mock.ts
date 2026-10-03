@@ -14,7 +14,7 @@ import {
   type SkipResult,
   type SystemStatus,
 } from '@/types/api';
-import { advanceDate, deriveStatus, isPending } from '@/lib/recurring';
+import { addDaysISO, advanceDate, deriveStatus, isPending } from '@/lib/recurring';
 import { occurrenceInterest } from '@/lib/prediction';
 import { todayISO } from '@/lib/format';
 
@@ -30,9 +30,7 @@ let memSeq = 100;
 const genMemId = () => `mem_${Date.now().toString(36)}_${++memSeq}`;
 
 function daysFromNow(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayISO(), n);
 }
 
 function seed(): DB {
@@ -332,7 +330,7 @@ export const mockApi = {
     if (r.last_run && r.last_run === r.next_run)
       throw new ApiError(409, { error: 'ALREADY_PROCESSED', message: `Occurrence ${r.next_run} of rule ${id} was already processed` });
 
-    const interest = occurrenceInterest(src.amount, src.interest_rate);
+    const interest = occurrenceInterest(src.amount, src.interest_rate, r.repeat_type);
     let bankCredited = 0;
     let sourceDelta = 0;
 
