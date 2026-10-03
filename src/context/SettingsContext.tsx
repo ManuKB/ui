@@ -37,7 +37,6 @@ function load(): SettingsState {
     // Demo mode works everywhere with no hardware; switch to "Live device" in Settings.
     mode: 'live',
     deviceUrl: DEFAULT_URL,
-    // Follow the browser/OS theme until the user makes an explicit choice.
     theme: 'system',
   };
   try {
