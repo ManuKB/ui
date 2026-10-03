@@ -19,10 +19,9 @@ function addYears(iso: string, years: number) {
 }
 
 function statusBadge(p: AssetProjection) {
-  if (!p.hasSchedule) return <Badge tone="muted" dot>No schedule</Badge>;
-  if (!p.hasRule) return <Badge tone="muted" dot>No rule</Badge>;
   if (p.matured) return <Badge tone="warn" dot>Matured</Badge>;
-  return <Badge tone="success" dot>Active</Badge>;
+  if (p.gain <= 0) return <Badge tone="muted" dot>No interest</Badge>;
+  return <Badge tone="success" dot>Growing</Badge>;
 }
 
 export function PredictionPage() {
@@ -63,7 +62,7 @@ export function PredictionPage() {
         <div>
           <p className="page-head__crumb">Portfolio Overview</p>
           <h2 className="page-head__title">Prediction</h2>
-          <p className="page-head__sub">Projected value on the selected date, from each asset's own recurring rule</p>
+          <p className="page-head__sub">Projected value on the selected date from each asset's annual rate — cumulative compounds, monthly pays out</p>
         </div>
         <label className="predict-datepick">
           <CalendarRange size={16} />

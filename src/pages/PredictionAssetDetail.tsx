@@ -1,4 +1,4 @@
-import { Calendar, Wallet, Flag, Clock, CheckCircle2, TriangleAlert, Pencil } from 'lucide-react';
+import { Calendar, Wallet, Flag, Clock, CheckCircle2, TriangleAlert, Pencil, TrendingUp } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/primitives';
 import { AssetAvatar, ASSET_TYPE_META } from '@/components/domain';
@@ -60,18 +60,18 @@ export function PredictionAssetDetail({
             </li>
           </ul>
 
-          {!projection.hasSchedule ? (
+          {asset.interest_type === 'NONE' || !(asset.interest_rate > 0) ? (
             <div className="inline-warn">
               <TriangleAlert size={16} />
-              No start date set for this asset yet — projections show its current value until you add one.
-            </div>
-          ) : !projection.hasRule ? (
-            <div className="inline-warn">
-              <TriangleAlert size={16} />
-              No active recurring rule references this asset, so no growth is projected for it yet.
+              This asset has no interest rate, so its value stays flat.
             </div>
           ) : (
             <div className="predict-spec">
+              <div className="predict-spec__row">
+                <TrendingUp size={16} />
+                <span>{asset.interest_type === 'CUMULATIVE' ? 'Cumulative · compounds monthly' : 'Monthly · interest paid out'}</span>
+                <b>{asset.interest_rate}% p.a.</b>
+              </div>
               <div className="predict-spec__row">
                 <Calendar size={16} />
                 <span>Selected date</span>

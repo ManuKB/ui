@@ -1,5 +1,4 @@
-import type { Asset, RecurringRule, RepeatType } from '@/types/api';
-import { advanceDate } from './recurring';
+import type { Asset, RepeatType } from '@/types/api';
 import { todayISO } from './format';
 
 export interface AssetSchedule {
@@ -12,25 +11,25 @@ export type ScheduleMap = Record<string, AssetSchedule>;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Interest earned on one occurrence of a recurring rule. Identical formula to the
- * one the firmware/mock applies when it actually processes an occurrence (see
- * api/mock.ts `processRecurring`) — the projection below walks the same mechanics
- * forward in time instead of inventing a separate growth model.
+ * Per-occurrence interest for a recurring rule (rate is ANNUAL; one occurrence
+ * earns rate / periods-per-year, mirroring ESP32 CalculationService). Used by the
+ * demo backend when it processes a rule — NOT by the Prediction page.
  */
 export function occurrenceInterest(principal: number, annualRatePct: number, repeat: RepeatType): number {
-  // Rates are ANNUAL; one occurrence earns rate / periods-per-year (mirrors
-  // ESP32 CalculationService::periodsPerYear).
   const periodsPerYear = { DAILY: 365, WEEKLY: 52, MONTHLY: 12, QUARTERLY: 4, YEARLY: 1 }[repeat] ?? 0;
   if (periodsPerYear <= 0) return 0;
   return round2((principal * (annualRatePct / 100)) / periodsPerYear);
 }
 
+/** CUMULATIVE interest compounds back into the asset this many times a year. */
+export const CUMULATIVE_COMPOUNDS_PER_YEAR = 12;
+
 export interface AssetProjection {
   assetId: string;
   invested: number;
+  /** principal + interest earned by the target date (MONTHLY interest is paid out, but counted as gain) */
   predicted: number;
   gain: number;
-  hasRule: boolean;
   hasSchedule: boolean;
   matured: boolean;
   expiryDate: string | null;
@@ -45,13 +44,38 @@ export interface PortfolioProjection {
   timeline: { date: string; value: number }[];
 }
 
-// Safety cap so a pathological DAILY rule decades out can't hang the tab (~50yrs of daily occurrences).
-const MAX_STEPS_PER_RULE = 20_000;
+const dayNumber = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return Date.UTC(y, m - 1, d) / 86_400_000;
+};
 
-interface InterestEvent {
-  date: string;
-  assetId: string;
-  delta: number;
+const maxISO = (a: string, b: string) => (a >= b ? a : b);
+const minISO = (a: string, b: string) => (a <= b ? a : b);
+
+/**
+ * Value of one asset on `date`, from its own interest_type and ANNUAL rate only:
+ *   CUMULATIVE  interest is added back to the asset (compounds monthly)
+ *   MONTHLY     interest is paid out every month on the unchanged principal (simple)
+ *   NONE        no growth
+ * Interest accrues from today (or the asset's start date if it is in the future)
+ * until the target date, but never past the asset's expiry date.
+ */
+export function valueOnDate(asset: Asset, schedule: AssetSchedule | undefined, date: string, today: string): number {
+  const rate = asset.interest_rate;
+  if (asset.interest_type === 'NONE' || !(rate > 0)) return asset.amount;
+
+  const from = schedule?.start_date ? maxISO(today, schedule.start_date) : today;
+  const to = schedule?.expiry_date ? minISO(date, schedule.expiry_date) : date;
+  const days = Math.max(0, dayNumber(to) - dayNumber(from));
+  if (days === 0) return asset.amount;
+
+  const years = days / 365;
+  const r = rate / 100;
+  if (asset.interest_type === 'CUMULATIVE') {
+    const n = CUMULATIVE_COMPOUNDS_PER_YEAR;
+    return asset.amount * Math.pow(1 + r / n, n * years);
+  }
+  return asset.amount * (1 + r * years); // MONTHLY
 }
 
 function buildSampleDates(start: string, end: string, count: number): string[] {
@@ -65,98 +89,41 @@ function buildSampleDates(start: string, end: string, count: number): string[] {
   return dates;
 }
 
-/**
- * Projects every active asset forward to `targetDate` by walking each active
- * recurring rule occurrence-by-occurrence (respecting repeat_type and whether
- * interest compounds in place vs. pays out to a target bank), capped at the
- * source asset's own expiry_date when one is set. Assets with no rule, or past
- * their expiry, simply stop growing — matching how the firmware would actually
- * behave if every due occurrence were processed on schedule.
- */
+/** Projects every active asset to `targetDate` (see `valueOnDate`). Independent of recurring rules. */
 export function projectPortfolio(
   assets: Asset[],
-  rules: RecurringRule[],
   schedules: ScheduleMap,
   targetDate: string,
   sampleCount = 10,
 ): PortfolioProjection {
   const today = todayISO();
   const activeAssets = assets.filter((a) => a.active);
-  const invested = new Map(activeAssets.map((a) => [a.id, a.amount]));
-  const simPrincipal = new Map(invested); // grows in place as CUMULATIVE occurrences are simulated
-  const rulesByAssetId = new Map<string, boolean>();
-  const events: InterestEvent[] = [];
 
-  for (const rule of rules) {
-    if (!rule.active) continue;
-    const source = assets.find((a) => a.id === rule.asset_id);
-    if (!source || !source.active) continue;
-    rulesByAssetId.set(source.id, true);
-
-    const expiry = schedules[source.id]?.expiry_date ?? null;
-    const cap = expiry && expiry < targetDate ? expiry : targetDate;
-
-    let next = rule.next_run;
-    let steps = 0;
-    while (next.localeCompare(cap) <= 0 && steps < MAX_STEPS_PER_RULE) {
-      const principal = simPrincipal.get(source.id) ?? source.amount;
-      const interest = occurrenceInterest(principal, source.interest_rate, rule.repeat_type);
-      if (interest !== 0) {
-        if (source.interest_type === 'CUMULATIVE') {
-          events.push({ date: next, assetId: source.id, delta: interest });
-          simPrincipal.set(source.id, principal + interest);
-        } else if (rule.target_bank_id) {
-          events.push({ date: next, assetId: rule.target_bank_id, delta: interest });
-        }
-      }
-      next = advanceDate(next, rule.repeat_type);
-      steps += 1;
-    }
-  }
-
-  events.sort((a, b) => a.date.localeCompare(b.date));
-
-  const sampleDates = buildSampleDates(today, targetDate, sampleCount);
-  const timeline: { date: string; value: number }[] = [];
-  const running = new Map(invested);
-  let ei = 0;
-  for (const sampleDate of sampleDates) {
-    while (ei < events.length && events[ei].date.localeCompare(sampleDate) <= 0) {
-      const ev = events[ei];
-      if (running.has(ev.assetId)) running.set(ev.assetId, (running.get(ev.assetId) ?? 0) + ev.delta);
-      ei += 1;
-    }
-    let sum = 0;
-    for (const v of running.values()) sum += v;
-    timeline.push({ date: sampleDate, value: round2(sum) });
-  }
-  while (ei < events.length) {
-    const ev = events[ei];
-    if (running.has(ev.assetId)) running.set(ev.assetId, (running.get(ev.assetId) ?? 0) + ev.delta);
-    ei += 1;
-  }
+  const timeline = buildSampleDates(today, targetDate, sampleCount).map((date) => ({
+    date,
+    value: round2(activeAssets.reduce((sum, a) => sum + valueOnDate(a, schedules[a.id], date, today), 0)),
+  }));
 
   const perAsset = new Map<string, AssetProjection>();
   let totalInvested = 0;
   let totalPredicted = 0;
   for (const a of activeAssets) {
-    const inv = invested.get(a.id) ?? 0;
-    const pred = round2(running.get(a.id) ?? inv);
-    const expiry = schedules[a.id]?.expiry_date ?? null;
+    const schedule = schedules[a.id];
+    const predicted = round2(valueOnDate(a, schedule, targetDate, today));
+    const expiry = schedule?.expiry_date ?? null;
     const matured = !!expiry && expiry < targetDate;
     perAsset.set(a.id, {
       assetId: a.id,
-      invested: inv,
-      predicted: pred,
-      gain: round2(pred - inv),
-      hasRule: rulesByAssetId.has(a.id),
-      hasSchedule: !!schedules[a.id]?.start_date,
+      invested: a.amount,
+      predicted,
+      gain: round2(predicted - a.amount),
+      hasSchedule: !!(schedule?.start_date || schedule?.expiry_date),
       matured,
       expiryDate: expiry,
       interestUntil: matured ? expiry : null,
     });
-    totalInvested += inv;
-    totalPredicted += pred;
+    totalInvested += a.amount;
+    totalPredicted += predicted;
   }
 
   return {

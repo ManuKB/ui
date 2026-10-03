@@ -128,29 +128,24 @@ export function useSetAssetSchedule() {
   });
 }
 
-/** Composes assets + recurring rules + schedules into a portfolio projection for `targetDate` (YYYY-MM-DD). */
+/** Projects assets (with their optional start/expiry schedules) to `targetDate` (YYYY-MM-DD). */
 export function usePrediction(targetDate: string) {
   const assets = useAssets();
-  const rules = useRecurring();
   const schedules = useAssetSchedules();
-  const ready = assets.isSuccess && rules.isSuccess && schedules.isSuccess;
 
   const projection = useMemo(() => {
-    if (!ready || !assets.data || !rules.data || !schedules.data) return null;
-    return projectPortfolio(assets.data, rules.data, schedules.data, targetDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, assets.data, rules.data, schedules.data, targetDate]);
+    if (!assets.data || !schedules.data) return null;
+    return projectPortfolio(assets.data, schedules.data, targetDate);
+  }, [assets.data, schedules.data, targetDate]);
 
   return {
     projection,
     assets: assets.data,
-    rules: rules.data,
     schedules: schedules.data,
-    isLoading: assets.isLoading || rules.isLoading || schedules.isLoading,
-    isError: assets.isError || rules.isError || schedules.isError,
+    isLoading: assets.isLoading || schedules.isLoading,
+    isError: assets.isError || schedules.isError,
     refetch: () => {
       assets.refetch();
-      rules.refetch();
       schedules.refetch();
     },
   };
