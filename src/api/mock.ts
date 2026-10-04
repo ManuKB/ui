@@ -120,6 +120,7 @@ function save(db: DB) {
 export function resetMockDb() {
   const fresh = seed();
   save(fresh);
+  db = fresh; // the API reads the in-memory copy, so swap it too (no reload needed)
 }
 
 let db = load();
