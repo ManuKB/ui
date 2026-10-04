@@ -79,6 +79,9 @@ export function valueOnDate(asset: Asset, schedule: AssetSchedule | undefined, d
   return asset.amount * (1 + r * years); // MONTHLY
 }
 
+/** Asset types that never "mature", so they are left out of maturity reminders. */
+const MATURITY_EXCLUDED_TYPES: Asset['type'][] = ['BANK', 'STOCK'];
+
 export interface MaturityItem {
   asset: Asset;
   expiry: string;
@@ -105,6 +108,7 @@ export function maturityAlerts(
 
   for (const asset of assets) {
     if (!asset.active) continue;
+    if (MATURITY_EXCLUDED_TYPES.includes(asset.type)) continue;
     const schedule = schedules[asset.id];
     const expiry = schedule?.expiry_date;
     if (!expiry) continue;
