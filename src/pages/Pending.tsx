@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BellRing, Play, SkipForward, Zap, Clock, CheckCircle2, CalendarClock, ChevronRight, TriangleAlert } from 'lucide-react';
 import {
+  isTimeNotSynced,
   useAssetSchedules,
   useAssets,
   usePendingRecurring,
@@ -15,7 +16,7 @@ import { AssetForm } from './forms/AssetForm';
 import { stagger, riseItem } from '@/components/layout/Layout';
 import { fmtDate, fmtMoney, relativeDays } from '@/lib/format';
 import { maturityAlerts, type MaturityItem } from '@/lib/prediction';
-import { ApiError, type Asset, type ProcessResult } from '@/types/api';
+import type { Asset, ProcessResult } from '@/types/api';
 
 const MATURITY_WINDOW_MONTHS = 3;
 
@@ -63,9 +64,9 @@ export function PendingPage() {
     [assets.data, schedules.data],
   );
 
-  const timeNotSynced =
-    (pending.error instanceof ApiError && pending.error.code === 'TIME_NOT_SYNCED') ||
-    (status.data && !status.data.time_synced);
+  // The pending request itself is the source of truth: a cached device-status value
+  // could be stale and keep this error on screen after the clock has synced.
+  const timeNotSynced = isTimeNotSynced(pending.error);
 
   const rows = pending.data ?? [];
   const upcomingCount = (maturity?.upcoming.length ?? 0) + (maturity?.matured.length ?? 0);
@@ -141,9 +142,20 @@ export function PendingPage() {
         ) : timeNotSynced ? (
           <div className="pending-note pending-note--warn">
             <Clock size={16} />
-            <span>Device time not synchronised — the firmware holds date-sensitive work until the clock is set.</span>
-            <Button variant="subtle" size="sm" onClick={() => pending.refetch()}>
-              Check again
+            <span>
+              Device clock not synchronised yet — the firmware holds date-sensitive work until NTP completes. Retrying
+              automatically.
+            </span>
+            <Button
+              variant="subtle"
+              size="sm"
+              loading={pending.isFetching}
+              onClick={() => {
+                pending.refetch();
+                status.refetch();
+              }}
+            >
+              Check now
             </Button>
           </div>
         ) : pending.isError ? (

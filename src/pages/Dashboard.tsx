@@ -10,8 +10,19 @@ import {
   CircleCheckBig,
   Cpu,
   Activity,
+  CalendarClock,
+  Percent,
+  Clock,
 } from 'lucide-react';
-import { useAssets, useRecurring, usePendingRecurring, useSystemStatus } from '@/api/hooks';
+import {
+  isTimeNotSynced,
+  useAssetSchedules,
+  useAssets,
+  useRecurring,
+  usePendingRecurring,
+  useSystemStatus,
+} from '@/api/hooks';
+import { maturityAlerts } from '@/lib/prediction';
 import { Card, Badge, Spinner, Button } from '@/components/ui/primitives';
 import { DonutChart, type DonutSlice } from '@/components/charts/DonutChart';
 import { BarList } from '@/components/charts/BarRow';
@@ -46,7 +57,23 @@ export function Dashboard() {
       .filter((a) => a.interest_type !== 'NONE' && a.interest_rate > 0)
       .reduce((s, a) => s + (a.amount * a.interest_rate) / 100, 0);
 
+    // interest-bearing = annual rate above 0 (counts, plus the money behind them)
+    const earning = active.filter((a) => a.interest_rate > 0);
+    const flat = active.filter((a) => !(a.interest_rate > 0));
+    const sum = (l: typeof active) => l.reduce((s, a) => s + a.amount, 0);
+    const interest = {
+      earningCount: earning.length,
+      flatCount: flat.length,
+      earningValue: sum(earning),
+      flatValue: sum(flat),
+      slices: [
+        { label: 'Earning interest', value: earning.length, color: 'var(--accent-emerald)' },
+        { label: 'No interest', value: flat.length, color: '#94a3b8' },
+      ] as DonutSlice[],
+    };
+
     return {
+      interest,
       netWorth,
       activeCount: active.length,
       inactiveCount: list.length - active.length,
@@ -66,6 +93,40 @@ export function Dashboard() {
         .slice(0, 6),
     [rules],
   );
+
+  // "Upcoming events": same data as the Pending actions page (maturities + decisions)
+  const schedules = useAssetSchedules();
+  const events = useMemo(() => {
+    const maturity = assets.data && schedules.data ? maturityAlerts(assets.data, schedules.data) : null;
+    const nameOf = (id: string) => assets.data?.find((a) => a.id === id)?.name ?? id;
+    return [
+      ...(maturity?.matured ?? []).map((m) => ({
+        key: `m-${m.asset.id}`,
+        kind: 'matured' as const,
+        title: m.asset.name,
+        meta: `${m.asset.id} · ended ${fmtDate(m.expiry)}`,
+        value: m.maturityValue,
+        when: `Matured ${relativeDays(m.expiry)}`,
+      })),
+      ...(maturity?.upcoming ?? []).map((m) => ({
+        key: `u-${m.asset.id}`,
+        kind: 'maturity' as const,
+        title: m.asset.name,
+        meta: `${m.asset.id} · matures ${fmtDate(m.expiry)}`,
+        value: m.maturityValue,
+        when: relativeDays(m.expiry),
+      })),
+      ...(pending.data ?? []).map((r) => ({
+        key: `d-${r.id}`,
+        kind: 'decision' as const,
+        title: r.asset_name ?? nameOf(r.asset_id),
+        meta: `${r.id} · ${r.repeat_type.toLowerCase()} · due ${fmtDate(r.next_run)}`,
+        value: null as number | null,
+        when: r.status === 'OVERDUE' ? 'Overdue' : 'Due today',
+      })),
+    ];
+  }, [assets.data, schedules.data, pending.data]);
+  const EVENTS_SHOWN = 6;
 
   if (assets.isLoading) return <Spinner label="Loading portfolio…" />;
 
@@ -109,7 +170,7 @@ export function Dashboard() {
             icon={<BellRing size={18} />}
             label="Pending actions"
             value={pending.isError ? '—' : `${pending.data?.length ?? 0}`}
-            hint={pending.isError ? 'time not synced' : 'awaiting review'}
+            hint={pending.isError ? (isTimeNotSynced(pending.error) ? 'device clock syncing…' : 'unavailable') : 'awaiting review'}
             to="/pending"
             accent="var(--accent-amber)"
             urgent={(pending.data?.length ?? 0) > 0}
@@ -119,6 +180,39 @@ export function Dashboard() {
 
       {/* MAIN GRID */}
       <div className="dash-grid">
+        <motion.div variants={riseItem}>
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>
+                <Percent size={16} /> Interest-bearing
+              </h2>
+              <span className="panel__hint">{model.activeCount} active assets</span>
+            </header>
+            <div className="alloc alloc--stack">
+              <DonutChart
+                data={model.interest.slices}
+                size={150}
+                thickness={18}
+                centerValue={String(model.interest.earningCount)}
+                centerLabel="earning interest"
+              />
+              <div className="alloc__legend">
+                {[
+                  { label: 'Earning interest', count: model.interest.earningCount, value: model.interest.earningValue, color: 'var(--accent-emerald)' },
+                  { label: 'No interest', count: model.interest.flatCount, value: model.interest.flatValue, color: '#94a3b8' },
+                ].map((r) => (
+                  <div key={r.label} className="alloc__row">
+                    <span className="alloc__swatch" style={{ background: r.color }} />
+                    <span className="alloc__name">{r.label}</span>
+                    <span className="alloc__val mono">{r.count} assets</span>
+                    <span className="alloc__pct">{fmtCompact(r.value)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
         <motion.div variants={riseItem} className="dash-grid__span2">
           <Card className="panel">
             <header className="panel__head">
@@ -149,14 +243,51 @@ export function Dashboard() {
           </Card>
         </motion.div>
 
-       
-
         <motion.div variants={riseItem} className="dash-grid__span2">
           <Card className="panel">
             <header className="panel__head">
-              <h2>Largest holdings</h2>
+              <h2>
+                <CalendarClock size={16} /> Upcoming events
+              </h2>
+              <Link to="/pending" className="panel__link">
+                Pending actions <ArrowUpRight size={14} />
+              </Link>
             </header>
-            <BarList data={model.bars} />
+            {isTimeNotSynced(pending.error) && (
+              <p className="event-note">
+                <Clock size={14} /> Device clock still syncing — pending decisions will appear once it does.
+              </p>
+            )}
+            {events.length === 0 ? (
+              <p className="panel__empty">Nothing pending and nothing maturing in the next 3 months.</p>
+            ) : (
+              <ul className="event-list">
+                {events.slice(0, EVENTS_SHOWN).map((e) => (
+                  <li key={e.key}>
+                    <Link to="/pending" className={`event-row event-row--${e.kind}`}>
+                      <span className="event-row__icon">
+                        {e.kind === 'decision' ? <BellRing size={16} /> : <CalendarClock size={16} />}
+                      </span>
+                      <span className="event-row__mid">
+                        <span className="event-row__title">{e.title}</span>
+                        <span className="event-row__meta">{e.meta}</span>
+                      </span>
+                      <span className="event-row__right">
+                        {e.value !== null && <span className="event-row__value mono">{fmtMoney(e.value)}</span>}
+                        <Badge tone={e.kind === 'matured' ? 'danger' : e.kind === 'decision' ? 'warn' : 'info'} dot>
+                          {e.when}
+                        </Badge>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {events.length > EVENTS_SHOWN && (
+              <Link to="/pending" className="panel__link event-more">
+                +{events.length - EVENTS_SHOWN} more <ArrowUpRight size={14} />
+              </Link>
+            )}
           </Card>
         </motion.div>
 
@@ -190,7 +321,17 @@ export function Dashboard() {
             )}
           </Card>
         </motion.div>
-         <motion.div variants={riseItem}>
+
+        <motion.div variants={riseItem} className="dash-grid__span2">
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>Largest holdings</h2>
+            </header>
+            <BarList data={model.bars} />
+          </Card>
+        </motion.div>
+
+        <motion.div variants={riseItem} className="dash-grid__tablet-full">
           <Card className="panel panel--device">
             <header className="panel__head">
               <h2>

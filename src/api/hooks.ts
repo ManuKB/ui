@@ -38,12 +38,19 @@ export function useRecurring() {
   return useQuery({ queryKey: [...k.recurring, mode], queryFn: () => api.listRecurring() });
 }
 
+/** True when the firmware refused because its NTP clock isn't set yet (409 TIME_NOT_SYNCED). */
+export const isTimeNotSynced = (e: unknown) => e instanceof ApiError && e.code === 'TIME_NOT_SYNCED';
+
 export function usePendingRecurring() {
   const { api, mode } = useSettings();
   return useQuery({
     queryKey: [...k.pending, mode],
     queryFn: () => api.listPendingRecurring(),
     retry: 0,
+    // The device syncs its clock a few seconds after boot: keep retrying until it does,
+    // so the error clears by itself instead of waiting for a manual refresh.
+    refetchInterval: (query) => (isTimeNotSynced(query.state.error) ? 5_000 : false),
+    refetchIntervalInBackground: true,
   });
 }
 
