@@ -78,6 +78,59 @@ export function valueOnDate(asset: Asset, schedule: AssetSchedule | undefined, d
   return asset.amount * (1 + r * years); // MONTHLY
 }
 
+export interface MaturityBucket {
+  key: string;
+  label: string;
+  /** end date of the bucket (31-Dec of its year); null for Matured / Long term */
+  endsOn: string | null;
+  kind: 'matured' | 'year' | 'long';
+  value: number;
+  count: number;
+}
+
+/**
+ * Groups active assets by maturity RELATIVE TO THE SELECTED DATE and sums their
+ * predicted value on that date (matured assets are frozen at their expiry):
+ *   Matured          expiry before the selected date
+ *   Year buckets     the selected date's year and the 2 after it, each ending 31-Dec
+ *   Long term        expiry after the third 31-Dec, or no expiry date at all
+ */
+export function maturityBuckets(
+  assets: Asset[],
+  schedules: ScheduleMap,
+  perAsset: Map<string, AssetProjection>,
+  targetDate: string,
+  years = 3,
+): MaturityBucket[] {
+  const y0 = Number(targetDate.slice(0, 4));
+  const buckets: MaturityBucket[] = [
+    { key: 'matured', label: 'Matured', endsOn: null, kind: 'matured', value: 0, count: 0 },
+    ...Array.from({ length: years }, (_, i) => ({
+      key: `y${y0 + i}`,
+      label: '',
+      endsOn: `${y0 + i}-12-31`,
+      kind: 'year' as const,
+      value: 0,
+      count: 0,
+    })),
+    { key: 'long', label: 'Long term', endsOn: null, kind: 'long', value: 0, count: 0 },
+  ];
+
+  for (const a of assets) {
+    if (!a.active) continue;
+    const predicted = perAsset.get(a.id)?.predicted ?? a.amount;
+    const expiry = schedules[a.id]?.expiry_date ?? null;
+    let bucket: MaturityBucket;
+    if (!expiry) bucket = buckets[buckets.length - 1];
+    else if (expiry < targetDate) bucket = buckets[0];
+    else bucket = buckets.find((b) => b.kind === 'year' && expiry <= (b.endsOn as string)) ?? buckets[buckets.length - 1];
+    bucket.value += predicted;
+    bucket.count += 1;
+  }
+  for (const b of buckets) b.value = round2(b.value);
+  return buckets;
+}
+
 function buildSampleDates(start: string, end: string, count: number): string[] {
   const s = new Date(start + 'T00:00:00Z').getTime();
   const e = new Date(end + 'T00:00:00Z').getTime();

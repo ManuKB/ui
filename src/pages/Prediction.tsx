@@ -11,7 +11,8 @@ import { AssetForm } from './forms/AssetForm';
 import { stagger, riseItem } from '@/components/layout/Layout';
 import { fmtMoney, fmtCompact, fmtDate, todayISO } from '@/lib/format';
 import { addMonthsISO } from '@/lib/recurring';
-import type { AssetProjection } from '@/lib/prediction';
+import { BarList, type BarDatum } from '@/components/charts/BarRow';
+import { maturityBuckets, type AssetProjection } from '@/lib/prediction';
 import type { Asset, AssetType } from '@/types/api';
 
 function addYears(iso: string, years: number) {
@@ -27,7 +28,7 @@ function statusBadge(p: AssetProjection) {
 export function PredictionPage() {
   const today = todayISO();
   const [targetDate, setTargetDate] = useState(() => addYears(today, 1));
-  const { projection, assets, isLoading, isError } = usePrediction(targetDate);
+  const { projection, assets, schedules, isLoading, isError } = usePrediction(targetDate);
   const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Asset | null>(null);
 
@@ -48,6 +49,18 @@ export function PredictionPage() {
       .sort((a, b) => b[1] - a[1])
       .map(([type, value]) => ({ label: ASSET_TYPE_META[type].label, value, color: ASSET_TYPE_META[type].color }));
   }, [rows]);
+
+  const maturity: BarDatum[] = useMemo(() => {
+    if (!assets || !schedules || !projection) return [];
+    const colors = { matured: 'var(--accent-amber)', year: 'var(--accent-cyan)', long: 'var(--accent-violet)' };
+    return maturityBuckets(assets, schedules, projection.perAsset, targetDate).map((b) => ({
+      label:
+        b.kind === 'year' ? `By ${fmtDate(b.endsOn)}` : b.kind === 'matured' ? 'Matured' : 'Long term / no expiry',
+      value: b.value,
+      color: colors[b.kind],
+      sub: `${b.count} asset${b.count === 1 ? '' : 's'}`,
+    }));
+  }, [assets, schedules, projection, targetDate]);
 
   if (isLoading) return <Spinner label="Projecting portfolio…" />;
   if (isError || !projection)
@@ -120,6 +133,16 @@ export function PredictionPage() {
                 ))}
               </div>
             </div>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }} className="dash-grid__span3">
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>Maturity timeline</h2>
+              <span className="panel__hint">from {fmtDate(targetDate)} · value on that date</span>
+            </header>
+            <BarList data={maturity} />
           </Card>
         </motion.div>
 
