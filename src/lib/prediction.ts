@@ -1,5 +1,6 @@
 import type { Asset, RepeatType } from '@/types/api';
 import { todayISO } from './format';
+import { addMonthsISO } from './recurring';
 
 export interface AssetSchedule {
   start_date: string | null;
@@ -76,6 +77,50 @@ export function valueOnDate(asset: Asset, schedule: AssetSchedule | undefined, d
     return asset.amount * Math.pow(1 + r / n, n * years);
   }
   return asset.amount * (1 + r * years); // MONTHLY
+}
+
+export interface MaturityItem {
+  asset: Asset;
+  expiry: string;
+  /** negative once the expiry date has passed */
+  daysLeft: number;
+  /** principal + interest up to the expiry date */
+  maturityValue: number;
+}
+
+/**
+ * Maturity reminders from asset data only (asset + its expiry date, no recurring rules):
+ *   upcoming  expiry from today through today + `months` calendar months, soonest first
+ *   matured   expiry already passed while the asset is still active, oldest first
+ */
+export function maturityAlerts(
+  assets: Asset[],
+  schedules: ScheduleMap,
+  today: string = todayISO(),
+  months = 3,
+): { upcoming: MaturityItem[]; matured: MaturityItem[] } {
+  const windowEnd = addMonthsISO(today, months);
+  const upcoming: MaturityItem[] = [];
+  const matured: MaturityItem[] = [];
+
+  for (const asset of assets) {
+    if (!asset.active) continue;
+    const schedule = schedules[asset.id];
+    const expiry = schedule?.expiry_date;
+    if (!expiry) continue;
+    const item: MaturityItem = {
+      asset,
+      expiry,
+      daysLeft: dayNumber(expiry) - dayNumber(today),
+      maturityValue: round2(valueOnDate(asset, schedule, expiry, today)),
+    };
+    if (expiry < today) matured.push(item);
+    else if (expiry <= windowEnd) upcoming.push(item);
+  }
+
+  upcoming.sort((a, b) => a.expiry.localeCompare(b.expiry));
+  matured.sort((a, b) => a.expiry.localeCompare(b.expiry));
+  return { upcoming, matured };
 }
 
 export interface MaturityBucket {

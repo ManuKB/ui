@@ -74,6 +74,25 @@ function seed(): DB {
     { id: 'mem_seed_10', entity: 'asset', owner: 'A008', name: 'demat_id', key: 'IN30 0214 1099 7742' },
   ];
 
+  // Prediction schedules (start/expiry) stored as Memory rows, like on the real device.
+  // Expiries are relative to today so the demo always has maturities in the next 3 months.
+  const schedules: [string, number, number][] = [
+    // [asset id, start offset (days), expiry offset (days)]
+    ['A010', -400, -10], // Loan to Ravi: already matured, still active
+    ['A003', -340, 20], // HDFC FD 7%: upcoming
+    ['A008', -300, 55], // RBI Floating Rate Bond: upcoming
+    ['A009', -280, 85], // NHAI Tax-Free Bond: upcoming, near the 3-month edge
+    ['A005', -200, 150], // Axis Cumulative FD: beyond 3 months
+    ['A014', -330, 400], // Gold Sovereign Bond: next year
+    ['A004', -200, 900], // SBI Tax Saver FD: long term
+  ];
+  for (const [owner, start, expiry] of schedules) {
+    memory.push(
+      { id: `sched-${owner}-start_date`, entity: 'asset', owner, name: 'start_date', key: daysFromNow(start) },
+      { id: `sched-${owner}-expiry_date`, entity: 'asset', owner, name: 'expiry_date', key: daysFromNow(expiry) },
+    );
+  }
+
   return { assets, recurring, memory };
 }
 
