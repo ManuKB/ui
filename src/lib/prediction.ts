@@ -127,6 +127,14 @@ export function maturityAlerts(
   return { upcoming, matured };
 }
 
+export interface MaturityBucketItem {
+  asset: Asset;
+  /** the asset's own end (expiry) date, null when it has none */
+  expiry: string | null;
+  /** predicted value on the selected date (what the bar sums) */
+  value: number;
+}
+
 export interface MaturityBucket {
   key: string;
   label: string;
@@ -135,6 +143,7 @@ export interface MaturityBucket {
   kind: 'matured' | 'year' | 'long';
   value: number;
   count: number;
+  items: MaturityBucketItem[];
 }
 
 /**
@@ -153,7 +162,7 @@ export function maturityBuckets(
 ): MaturityBucket[] {
   const y0 = Number(targetDate.slice(0, 4));
   const buckets: MaturityBucket[] = [
-    { key: 'matured', label: 'Matured', endsOn: null, kind: 'matured', value: 0, count: 0 },
+    { key: 'matured', label: 'Matured', endsOn: null, kind: 'matured', value: 0, count: 0, items: [] },
     ...Array.from({ length: years }, (_, i) => ({
       key: `y${y0 + i}`,
       label: '',
@@ -161,8 +170,9 @@ export function maturityBuckets(
       kind: 'year' as const,
       value: 0,
       count: 0,
+      items: [] as MaturityBucketItem[],
     })),
-    { key: 'long', label: 'Long term', endsOn: null, kind: 'long', value: 0, count: 0 },
+    { key: 'long', label: 'Long term', endsOn: null, kind: 'long', value: 0, count: 0, items: [] },
   ];
 
   for (const a of assets) {
@@ -175,8 +185,16 @@ export function maturityBuckets(
     else bucket = buckets.find((b) => b.kind === 'year' && expiry <= (b.endsOn as string)) ?? buckets[buckets.length - 1];
     bucket.value += predicted;
     bucket.count += 1;
+    bucket.items.push({ asset: a, expiry, value: round2(predicted) });
   }
-  for (const b of buckets) b.value = round2(b.value);
+  for (const b of buckets) {
+    b.value = round2(b.value);
+    // soonest end date first, assets without one last; biggest value first on ties
+    b.items.sort((x, y) => {
+      if (x.expiry !== y.expiry) return x.expiry === null ? 1 : y.expiry === null ? -1 : x.expiry.localeCompare(y.expiry);
+      return y.value - x.value;
+    });
+  }
   return buckets;
 }
 

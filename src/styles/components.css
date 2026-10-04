@@ -407,7 +407,31 @@
 .barlist__value { color: var(--text); }
 .barlist__track { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .barlist__fill { height: 100%; border-radius: 999px; }
-.barlist__sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+.barlist__sub { display: flex; align-items: center; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+.barlist__row--btn {
+  display: block;
+  margin: -8px; padding: 8px; /* grow the tap target without shifting the layout */
+  width: calc(100% + 16px);
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s;
+}
+.barlist__row--btn:hover { background: var(--surface-2); }
+.barlist__row--btn:active { background: var(--surface-hover); }
+.barlist__go { color: var(--text-dim); }
+
+/* maturity bucket popup */
+.bucket-sheet { display: flex; flex-direction: column; gap: 4px; }
+.bucket-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.bucket-item:last-child { border-bottom: 0; }
+.bucket-item__mid { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.bucket-item__name { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+.bucket-item__meta { font-size: 0.74rem; color: var(--text-dim); }
+.bucket-item__right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.bucket-item__value { font-weight: 700; font-size: 0.92rem; }
+.bucket-item__end { font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; }
+.bucket-item__end--none { color: var(--text-dim); }
 
 /* ---------------- Asset avatar ---------------- */
 .asset-avatar { display: grid; place-items: center; border-radius: 12px; flex-shrink: 0; }

@@ -12,7 +12,8 @@ import { stagger, riseItem } from '@/components/layout/Layout';
 import { fmtMoney, fmtCompact, fmtDate, todayISO } from '@/lib/format';
 import { addMonthsISO } from '@/lib/recurring';
 import { BarList, type BarDatum } from '@/components/charts/BarRow';
-import { maturityBuckets, type AssetProjection } from '@/lib/prediction';
+import { maturityBuckets, type AssetProjection, type MaturityBucket } from '@/lib/prediction';
+import { MaturityBucketSheet } from './MaturityBucketSheet';
 import type { Asset, AssetType } from '@/types/api';
 
 function addYears(iso: string, years: number) {
@@ -31,6 +32,7 @@ export function PredictionPage() {
   const { projection, assets, schedules, isLoading, isError } = usePrediction(targetDate);
   const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<Asset | null>(null);
+  const [openBucketKey, setOpenBucketKey] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     if (!assets || !projection) return [];
@@ -50,17 +52,23 @@ export function PredictionPage() {
       .map(([type, value]) => ({ label: ASSET_TYPE_META[type].label, value, color: ASSET_TYPE_META[type].color }));
   }, [rows]);
 
+  const buckets = useMemo(
+    () => (assets && schedules && projection ? maturityBuckets(assets, schedules, projection.perAsset, targetDate) : []),
+    [assets, schedules, projection, targetDate],
+  );
+  const bucketLabel = (b: MaturityBucket) =>
+    b.kind === 'year' ? `By ${fmtDate(b.endsOn)}` : b.kind === 'matured' ? 'Matured' : 'Long term / no expiry';
   const maturity: BarDatum[] = useMemo(() => {
-    if (!assets || !schedules || !projection) return [];
     const colors = { matured: 'var(--accent-amber)', year: 'var(--accent-cyan)', long: 'var(--accent-violet)' };
-    return maturityBuckets(assets, schedules, projection.perAsset, targetDate).map((b) => ({
-      label:
-        b.kind === 'year' ? `By ${fmtDate(b.endsOn)}` : b.kind === 'matured' ? 'Matured' : 'Long term / no expiry',
+    return buckets.map((b) => ({
+      label: bucketLabel(b),
       value: b.value,
       color: colors[b.kind],
       sub: `${b.count} asset${b.count === 1 ? '' : 's'}`,
+      disabled: b.count === 0,
     }));
-  }, [assets, schedules, projection, targetDate]);
+  }, [buckets]);
+  const openBucket = buckets.find((b) => b.key === openBucketKey) ?? null;
 
   if (isLoading) return <Spinner label="Projecting portfolio…" />;
   if (isError || !projection)
@@ -107,9 +115,9 @@ export function PredictionPage() {
           <Card className="panel">
             <header className="panel__head">
               <h2>Maturity timeline</h2>
-              <span className="panel__hint">from {fmtDate(targetDate)} · value on that date</span>
+              <span className="panel__hint">tap a bar for its assets</span>
             </header>
-            <BarList data={maturity} />
+            <BarList data={maturity} onSelect={(i) => setOpenBucketKey(buckets[i]?.key ?? null)} />
           </Card>
         </motion.div>
         
@@ -233,6 +241,12 @@ export function PredictionPage() {
           setDetailAsset(null);
           setEditingSchedule(a);
         }}
+      />
+      <MaturityBucketSheet
+        bucket={openBucket}
+        title={openBucket ? bucketLabel(openBucket) : ''}
+        targetDate={targetDate}
+        onClose={() => setOpenBucketKey(null)}
       />
       <AssetForm open={!!editingSchedule} onClose={() => setEditingSchedule(null)} editing={editingSchedule} />
     </div>
