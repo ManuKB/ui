@@ -13,7 +13,15 @@ import {
   type InterestType,
   type UpdateType,
 } from '@/types/api';
-import { useAssetMutations, useAssetSchedules, useSetAssetSchedule } from '@/api/hooks';
+import { useAssetMutations, useAssets, useAssetSchedules, useSetAssetSchedule } from '@/api/hooks';
+
+/** Suggested ID for a new asset: "A" + (asset count + 1), skipping any ID already taken. */
+function nextAssetId(assets: Asset[] | undefined): string {
+  const taken = new Set((assets ?? []).map((a) => a.id));
+  let n = (assets?.length ?? 0) + 1;
+  while (taken.has(`A${String(n).padStart(3, '0')}`)) n += 1;
+  return `A${String(n).padStart(3, '0')}`;
+}
 
 type Draft = {
   id: string;
@@ -70,6 +78,7 @@ export function AssetForm({
 }) {
   const { create, update } = useAssetMutations();
   const { data: schedules } = useAssetSchedules();
+  const { data: assets } = useAssets();
   const setSchedule = useSetAssetSchedule();
   const [draft, setDraft] = useState<Draft>(empty);
   const [initialSchedule, setInitialSchedule] = useState({ start_date: '', expiry_date: '' });
@@ -85,10 +94,11 @@ export function AssetForm({
       setDraft(toDraft(editing, start, expiry));
       setInitialSchedule({ start_date: start, expiry_date: expiry });
     } else {
-      setDraft(empty);
+      setDraft({ ...empty, id: nextAssetId(assets) });
       setInitialSchedule({ start_date: '', expiry_date: '' });
     }
-    // schedules load asynchronously; re-sync once they arrive for an asset being edited
+    // `assets` is read when the form opens but deliberately not a dependency, so a
+    // background refetch can't overwrite what is being typed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editing, schedules]);
 
@@ -165,7 +175,7 @@ export function AssetForm({
       }
     >
       <div className="form-grid">
-        <Field label="Asset ID" required error={errors.id} hint={editing ? 'ID cannot be changed' : 'Unique key, e.g. A015'}>
+        <Field label="Asset ID" required error={errors.id} hint={editing ? 'ID cannot be changed' : 'Suggested next ID — you can change it'}>
           <Input
             value={draft.id}
             disabled={!!editing}
