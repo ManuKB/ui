@@ -149,7 +149,48 @@ export function Dashboard() {
           </Card>
         </motion.div>
 
+       
+
+        <motion.div variants={riseItem} className="dash-grid__span2">
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>Largest holdings</h2>
+            </header>
+            <BarList data={model.bars} />
+          </Card>
+        </motion.div>
+
         <motion.div variants={riseItem}>
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>Upcoming runs</h2>
+              <Link to="/recurring" className="panel__link">
+                All rules <ArrowUpRight size={14} />
+              </Link>
+            </header>
+            {upcoming.length === 0 ? (
+              <p className="panel__empty">No active recurring rules.</p>
+            ) : (
+              <ol className="timeline">
+                {upcoming.map((r) => (
+                  <li key={r.id} className="timeline__item">
+                    <span className="timeline__dot" />
+                    <div className="timeline__body">
+                      <div className="timeline__row">
+                        <b className="mono">{r.id}</b>
+                        <StatusBadge status={r.status} />
+                      </div>
+                      <span className="timeline__meta">
+                        {fmtDate(r.next_run)} · {relativeDays(r.next_run)} · {r.repeat_type}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
+        </motion.div>
+         <motion.div variants={riseItem}>
           <Card className="panel panel--device">
             <header className="panel__head">
               <h2>
@@ -199,47 +240,7 @@ export function Dashboard() {
             ) : null}
           </Card>
         </motion.div>
-
-        <motion.div variants={riseItem} className="dash-grid__span2">
-          <Card className="panel">
-            <header className="panel__head">
-              <h2>Largest holdings</h2>
-            </header>
-            <BarList data={model.bars} />
-          </Card>
-        </motion.div>
-
-        <motion.div variants={riseItem}>
-          <Card className="panel">
-            <header className="panel__head">
-              <h2>Upcoming runs</h2>
-              <Link to="/recurring" className="panel__link">
-                All rules <ArrowUpRight size={14} />
-              </Link>
-            </header>
-            {upcoming.length === 0 ? (
-              <p className="panel__empty">No active recurring rules.</p>
-            ) : (
-              <ol className="timeline">
-                {upcoming.map((r) => (
-                  <li key={r.id} className="timeline__item">
-                    <span className="timeline__dot" />
-                    <div className="timeline__body">
-                      <div className="timeline__row">
-                        <b className="mono">{r.id}</b>
-                        <StatusBadge status={r.status} />
-                      </div>
-                      <span className="timeline__meta">
-                        {fmtDate(r.next_run)} · {relativeDays(r.next_run)} · {r.repeat_type}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Card>
-        </motion.div>
-
+        
         <motion.div variants={riseItem} className="dash-grid__span3">
           <Card className="panel">
             <header className="panel__head">

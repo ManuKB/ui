@@ -103,6 +103,16 @@ export function PredictionPage() {
         </motion.div>
       </motion.div>
 
+       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }} className="dash-grid__span3">
+          <Card className="panel">
+            <header className="panel__head">
+              <h2>Maturity timeline</h2>
+              <span className="panel__hint">from {fmtDate(targetDate)} · value on that date</span>
+            </header>
+            <BarList data={maturity} />
+          </Card>
+        </motion.div>
+        
       <div className="dash-grid">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="dash-grid__span2">
           <Card className="panel">
@@ -133,16 +143,6 @@ export function PredictionPage() {
                 ))}
               </div>
             </div>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }} className="dash-grid__span3">
-          <Card className="panel">
-            <header className="panel__head">
-              <h2>Maturity timeline</h2>
-              <span className="panel__hint">from {fmtDate(targetDate)} · value on that date</span>
-            </header>
-            <BarList data={maturity} />
           </Card>
         </motion.div>
 
