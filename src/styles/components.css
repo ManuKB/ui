@@ -517,6 +517,18 @@
 .alloc__legend { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px; }
 .alloc__row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; font-size: 0.82rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
 .alloc__row:last-child { border-bottom: 0; }
+.alloc__row--btn {
+  grid-template-columns: auto 1fr auto auto auto;
+  width: 100%; padding: 11px 8px; margin: 0 -8px; width: calc(100% + 16px); /* >=44px tap target, aligned with other rows */
+  border: 0; border-bottom: 1px solid var(--border); border-radius: var(--radius-xs);
+  background: transparent; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.14s;
+}
+.alloc__row--btn:hover:not(:disabled) { background: var(--surface-2); }
+.alloc__row--btn:active:not(:disabled) { background: var(--surface-hover); }
+.alloc__row--btn:disabled { opacity: 0.5; cursor: default; }
+.alloc__row--btn:last-child { border-bottom: 0; }
+.alloc__go { color: var(--text-dim); }
 .alloc__swatch { width: 10px; height: 10px; border-radius: 3px; }
 .alloc__name { color: var(--text-muted); }
 .alloc__val { font-weight: 600; }

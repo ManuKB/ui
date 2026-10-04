@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { AssetListSheet } from './AssetListSheet';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -13,6 +14,7 @@ import {
   CalendarClock,
   Percent,
   Clock,
+  ChevronRight,
 } from 'lucide-react';
 import {
   isTimeNotSynced,
@@ -128,6 +130,22 @@ export function Dashboard() {
   }, [assets.data, schedules.data, pending.data]);
   const EVENTS_SHOWN = 6;
 
+  // Assets behind each slice of the interest card, for the tap-through popup.
+  const [openGroup, setOpenGroup] = useState<'earning' | 'flat' | null>(null);
+  const groups = useMemo(() => {
+    const active = (assets.data ?? []).filter((a) => a.active);
+    const toItems = (list: typeof active) =>
+      list
+        .map((asset) => ({ asset, expiry: schedules.data?.[asset.id]?.expiry_date ?? null, value: asset.amount }))
+        .sort((x, y) => y.value - x.value);
+    return {
+      earning: toItems(active.filter((a) => a.interest_rate > 0)),
+      flat: toItems(active.filter((a) => !(a.interest_rate > 0))),
+    };
+  }, [assets.data, schedules.data]);
+  const openItems = openGroup ? groups[openGroup] : [];
+  const openTotal = openItems.reduce((s, i) => s + i.value, 0);
+
   if (assets.isLoading) return <Spinner label="Loading portfolio…" />;
 
   const autoCount = rules.filter((r) => r.status === 'AUTO').length;
@@ -198,15 +216,23 @@ export function Dashboard() {
               />
               <div className="alloc__legend">
                 {[
-                  { label: 'Earning interest', count: model.interest.earningCount, value: model.interest.earningValue, color: 'var(--accent-emerald)' },
-                  { label: 'No interest', count: model.interest.flatCount, value: model.interest.flatValue, color: '#94a3b8' },
+                  { key: 'earning' as const, label: 'Earning interest', count: model.interest.earningCount, value: model.interest.earningValue, color: 'var(--accent-emerald)' },
+                  { key: 'flat' as const, label: 'No interest', count: model.interest.flatCount, value: model.interest.flatValue, color: '#94a3b8' },
                 ].map((r) => (
-                  <div key={r.label} className="alloc__row">
+                  <button
+                    key={r.key}
+                    type="button"
+                    className="alloc__row alloc__row--btn"
+                    disabled={r.count === 0}
+                    onClick={() => setOpenGroup(r.key)}
+                    aria-label={`Show ${r.count} assets: ${r.label}`}
+                  >
                     <span className="alloc__swatch" style={{ background: r.color }} />
                     <span className="alloc__name">{r.label}</span>
                     <span className="alloc__val mono">{r.count} assets</span>
                     <span className="alloc__pct">{fmtCompact(r.value)}</span>
-                  </div>
+                    <ChevronRight size={14} className="alloc__go" />
+                  </button>
                 ))}
               </div>
             </div>
@@ -407,6 +433,14 @@ export function Dashboard() {
           </Card>
         </motion.div>
       </div>
+
+      <AssetListSheet
+        open={openGroup !== null}
+        onClose={() => setOpenGroup(null)}
+        title={openGroup === 'earning' ? 'Earning interest' : 'No interest'}
+        subtitle={`${openItems.length} asset${openItems.length === 1 ? '' : 's'} · ${fmtMoney(openTotal)} current value`}
+        items={openItems}
+      />
     </motion.div>
   );
 }
